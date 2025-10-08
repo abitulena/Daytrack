@@ -1,0 +1,41 @@
+# Системные файлы
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Логи и временные файлы
+*.log
+*.tmp
+*.temp
+
+# Папка с зависимостями Node.js (если будет)
+node_modules/
+
+# Файлы редакторов и IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Авто-сохраненные файлы
+*.autosave
+
+# Резервные копии
+*.backup
+*.bak
+*.save
+
+# Файлы сборки и дистрибутивы
+dist/
+build/
+*.exe
+
+# Файлы операционных систем
+._*
+.Spotlight-V100
+.Trashes
+
+# Пароли и конфиденциальные данные
+*.env
+config.php
+secrets.json
