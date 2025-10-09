@@ -39,3 +39,4 @@ build/
 *.env
 config.php
 secrets.json
+/www
