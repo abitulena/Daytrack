@@ -366,7 +366,7 @@ html, body {
   overflow: hidden;
 }
 
-/* Фоновая картинка */
+/* Фоновая картинка - сделана ярче */
 .background-image {
   position: absolute;
   top: 0;
@@ -375,7 +375,8 @@ html, body {
   height: 100%;
   object-fit: cover;
   z-index: -1;
-  opacity: 0.3; /* Полупрозрачность чтобы не перебивать контент */
+  opacity: 0.5; /* Увеличили прозрачность с 0.3 до 0.5 */
+  filter: brightness(1.1) saturate(1.2); /* Добавили яркость и насыщенность */
 }
 
 /* Welcome Text - подняли выше */
