@@ -60,7 +60,7 @@ const DiaryEntry = sequelize.define('DiaryEntry', {
 // hashtags
 const Hashtag = sequelize.define('Hashtag', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  user_id: { type: DataTypes.INTEGER, allowNull: false }, // ⭐ УЖЕ БЫЛО
+  user_id: { type: DataTypes.INTEGER, allowNull: false }, 
   tag_name: { type: DataTypes.STRING(50), allowNull: false },
   color: { type: DataTypes.STRING(7), defaultValue: '#000000' }
 }, {
