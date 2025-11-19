@@ -20,6 +20,7 @@ const User = sequelize.define('User', {
 const Emotion = sequelize.define('Emotion', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   name: { type: DataTypes.STRING(50), unique: true, allowNull: false },
+  image_url: { type: DataTypes.STRING(500), allowNull: false },
   display_order: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, {
   tableName: 'emotions',
@@ -30,6 +31,7 @@ const Emotion = sequelize.define('Emotion', {
 const SleepQuality = sequelize.define('SleepQuality', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   name: { type: DataTypes.STRING(50), unique: true, allowNull: false },
+  image_url: { type: DataTypes.STRING(500), allowNull: false },
   display_order: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, {
   tableName: 'sleep_quality',
