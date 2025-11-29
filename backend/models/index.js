@@ -1,5 +1,5 @@
-// models/index.js 
-const { sequelize, DataTypes, testConnection } = require('./init');
+// models/index.js
+import { sequelize, DataTypes, testConnection } from './init.js'; 
 
 // users
 const User = sequelize.define('User', {
@@ -8,7 +8,7 @@ const User = sequelize.define('User', {
   email: { type: DataTypes.STRING(255), unique: true, allowNull: false },
   password_hash: { type: DataTypes.STRING(255), allowNull: false },
   birth_date: { type: DataTypes.DATEONLY, allowNull: false },
-  gender: { type: DataTypes.ENUM('M', 'Ж'), allowNull: false }
+  gender: { type: DataTypes.ENUM('M', 'F'), allowNull: false }
 }, {
   tableName: 'users',
   timestamps: true,
@@ -20,6 +20,7 @@ const User = sequelize.define('User', {
 const Emotion = sequelize.define('Emotion', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   name: { type: DataTypes.STRING(50), unique: true, allowNull: false },
+  image_url: { type: DataTypes.STRING(500), allowNull: false },
   display_order: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, {
   tableName: 'emotions',
@@ -30,6 +31,7 @@ const Emotion = sequelize.define('Emotion', {
 const SleepQuality = sequelize.define('SleepQuality', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   name: { type: DataTypes.STRING(50), unique: true, allowNull: false },
+  image_url: { type: DataTypes.STRING(500), allowNull: false },
   display_order: { type: DataTypes.INTEGER, defaultValue: 0 }
 }, {
   tableName: 'sleep_quality',
@@ -60,9 +62,8 @@ const DiaryEntry = sequelize.define('DiaryEntry', {
 // hashtags
 const Hashtag = sequelize.define('Hashtag', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  user_id: { type: DataTypes.INTEGER, allowNull: false }, 
-  tag_name: { type: DataTypes.STRING(50), allowNull: false },
-  color: { type: DataTypes.STRING(7), defaultValue: '#000000' }
+  tag_name: { type: DataTypes.STRING(50), unique: true, allowNull: false }, 
+  is_custom: { type: DataTypes.BOOLEAN, defaultValue: false } 
 }, {
   tableName: 'hashtags',
   timestamps: true,
@@ -70,7 +71,7 @@ const Hashtag = sequelize.define('Hashtag', {
   updatedAt: false
 });
 
-// gallery_photos
+// gallery_photo
 const GalleryPhoto = sequelize.define('GalleryPhoto', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   entry_id: { type: DataTypes.INTEGER, allowNull: false }, 
@@ -103,9 +104,6 @@ DiaryEntry.belongsTo(User, { foreignKey: 'user_id' });
 DiaryEntry.belongsTo(Emotion, { foreignKey: 'emotion_id' });
 DiaryEntry.belongsTo(SleepQuality, { foreignKey: 'sleep_id' });
 
-User.hasMany(Hashtag, { foreignKey: 'user_id', onDelete: 'CASCADE' });
-Hashtag.belongsTo(User, { foreignKey: 'user_id' });
-
 DiaryEntry.belongsToMany(Hashtag, {
   through: EntryHashtag, 
   foreignKey: 'entry_id',
@@ -122,7 +120,7 @@ DiaryEntry.hasMany(GalleryPhoto, { foreignKey: 'entry_id', onDelete: 'CASCADE' }
 GalleryPhoto.belongsTo(DiaryEntry, { foreignKey: 'entry_id' });
 
 // ЭКСПОРТ ВСЕХ МОДЕЛЕЙ
-module.exports = {
+export { 
   sequelize,
   User,
   DiaryEntry,
