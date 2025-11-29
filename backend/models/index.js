@@ -1,5 +1,5 @@
 // models/index.js 
-const { sequelize, DataTypes, testConnection } = require('./init');
+import { sequelize, DataTypes, testConnection } from './init.js';
 
 // users
 const User = sequelize.define('User', {
@@ -122,7 +122,7 @@ DiaryEntry.hasMany(GalleryPhoto, { foreignKey: 'entry_id', onDelete: 'CASCADE' }
 GalleryPhoto.belongsTo(DiaryEntry, { foreignKey: 'entry_id' });
 
 // ЭКСПОРТ ВСЕХ МОДЕЛЕЙ
-module.exports = {
+export {
   sequelize,
   User,
   DiaryEntry,

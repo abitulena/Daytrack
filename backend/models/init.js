@@ -1,8 +1,8 @@
 // models/init.js
-const { Sequelize, DataTypes } = require('sequelize');
+import { Sequelize, DataTypes } from 'sequelize';
 
 
-const sequelize = new Sequelize('daytrack_db', 'postgres', '54321', {
+const sequelize = new Sequelize('daytrack', 'postgres', '88888', {
   host: 'localhost',
   dialect: 'postgres',
   port: 5432, 
@@ -19,4 +19,4 @@ async function testConnection() {
   }
 }
 
-module.exports = { sequelize, DataTypes, testConnection };
+export { sequelize, DataTypes, testConnection };
