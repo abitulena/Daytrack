@@ -124,7 +124,7 @@ DiaryEntry.hasMany(GalleryPhoto, { foreignKey: 'entry_id', onDelete: 'CASCADE' }
 GalleryPhoto.belongsTo(DiaryEntry, { foreignKey: 'entry_id' });
 
 // ЭКСПОРТ ВСЕХ МОДЕЛЕЙ
-export { // 👈 ИЗМЕНИТЬ НА export
+export { 
   sequelize,
   User,
   DiaryEntry,
