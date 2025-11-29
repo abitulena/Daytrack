@@ -40,3 +40,4 @@ build/
 config.php
 secrets.json
 /www
+node_modules/

@@ -1,5 +1,5 @@
 // models/index.js 
-const { sequelize, DataTypes, testConnection } = require('./init');
+import { sequelize, DataTypes, testConnection } from './init.js'; 
 
 // users
 const User = sequelize.define('User', {
@@ -8,7 +8,7 @@ const User = sequelize.define('User', {
   email: { type: DataTypes.STRING(255), unique: true, allowNull: false },
   password_hash: { type: DataTypes.STRING(255), allowNull: false },
   birth_date: { type: DataTypes.DATEONLY, allowNull: false },
-  gender: { type: DataTypes.ENUM('M', 'Ж'), allowNull: false }
+  gender: { type: DataTypes.ENUM('M', 'F'), allowNull: false }
 }, {
   tableName: 'users',
   timestamps: true,
@@ -124,7 +124,7 @@ DiaryEntry.hasMany(GalleryPhoto, { foreignKey: 'entry_id', onDelete: 'CASCADE' }
 GalleryPhoto.belongsTo(DiaryEntry, { foreignKey: 'entry_id' });
 
 // ЭКСПОРТ ВСЕХ МОДЕЛЕЙ
-module.exports = {
+export { // 👈 ИЗМЕНИТЬ НА export
   sequelize,
   User,
   DiaryEntry,
