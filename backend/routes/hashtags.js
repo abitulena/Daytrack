@@ -1,15 +1,12 @@
-// routes/hashtags.js
 import express from 'express';
 import { hashtagController } from '../controllers/hashtagController.js';
 
 const router = express.Router();
 
 
-
-// GET /api/hashtags - Получить ВСЕ хештеги пользователя
-router.get('/', hashtagController.getHashtags);
-
-// POST /api/hashtags - Создать НОВЫЙ хештег
-router.post('/', hashtagController.createHashtag);
+router.get('/', hashtagController.getAll);           // GET /api/hashtags
+router.post('/', hashtagController.create);          // POST /api/hashtags
+router.delete('/:id', hashtagController.delete);     // DELETE /api/hashtags/:id
+router.get('/search', hashtagController.search);     // GET /api/hashtags/search?q=текст
 
 export default router;

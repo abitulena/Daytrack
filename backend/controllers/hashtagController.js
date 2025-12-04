@@ -1,99 +1,143 @@
-/**
- * Контроллер для работы с хештегами
- * Пользовательские хештеги 
- */
-import { Hashtag, DiaryEntry, EntryHashtag } from '../models/index.js';
+import { Hashtag } from '../models/index.js';
+import { Op } from 'sequelize';
 
 export const hashtagController = {
-  /**
-   * Получить все хештеги пользователя
-   * GET /api/hashtags
-   */
-  async getHashtags(req, res) {
+
+  //получить все хештеги
+  async getAll(req, res) {
     try {
-      const userId = req.user?.id;
-
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          error: 'Пользователь не авторизован'
-        });
-      }
-
       const hashtags = await Hashtag.findAll({
-        where: { user_id: userId },
-        attributes: ['id', 'tag_name', 'color', 'created_at'],
-        order: [['created_at', 'DESC']]
+        order: [
+          ['is_custom', 'ASC'],  
+          ['tag_name', 'ASC']   
+        ]
       });
-
+      
       res.json({
         success: true,
-        data: hashtags
+        hashtags
       });
-
+      
     } catch (error) {
-      console.error('Ошибка при получении хештегов:', error);
       res.status(500).json({
         success: false,
-        error: 'Не удалось получить хештеги'
+        error: 'Ошибка сервера'
       });
     }
   },
 
-  /**
-   * Создать хештег
-   * POST /api/hashtags
-   */
-  async createHashtag(req, res) {
+  //создать хештег
+  async create(req, res) {
     try {
-      const userId = req.user?.id;
-      const { tag_name, color = '#000000' } = req.body;
-
-      if (!userId) {
-        return res.status(401).json({
-          success: false,
-          error: 'Пользователь не авторизован'
-        });
-      }
-
-      if (!tag_name || typeof tag_name !== 'string' || tag_name.trim().length === 0) {
+      const { tag_name } = req.body;
+      
+      if (!tag_name) {
         return res.status(400).json({
           success: false,
-          error: 'Название хештега обязательно'
+          error: 'Введите название хештега'
         });
       }
-
-      const normalizedTag = tag_name.trim().toLowerCase();
-
-      // Проверяем, существует ли уже такой хештег
-      const existingHashtag = await Hashtag.findOne({
-        where: { user_id: userId, tag_name: normalizedTag }
+      
+      const cleanTag = tag_name.trim().toLowerCase();
+      
+      const exists = await Hashtag.findOne({ 
+        where: { tag_name: cleanTag } 
       });
-
-      if (existingHashtag) {
-        return res.status(409).json({
+      
+      if (exists) {
+        return res.status(400).json({
           success: false,
-          error: 'Хештег с таким названием уже существует'
+          error: 'Такой хештег уже существует'
         });
       }
-
-      const newHashtag = await Hashtag.create({
-        user_id: userId,
-        tag_name: normalizedTag,
-        color
+      
+      const hashtag = await Hashtag.create({
+        tag_name: cleanTag,
+        is_custom: true  
       });
-
-      res.status(201).json({
+      
+      res.json({
         success: true,
-        message: 'Хештег успешно создан',
-        data: newHashtag
+        message: 'Хештег создан',
+        hashtag
       });
-
+      
     } catch (error) {
-      console.error('Ошибка при создании хештега:', error);
       res.status(500).json({
         success: false,
         error: 'Не удалось создать хештег'
+      });
+    }
+  },
+
+  //удалить хештег
+  async delete(req, res) {
+    try {
+      const { id } = req.params;
+      
+      const hashtag = await Hashtag.findByPk(id);
+      
+      if (!hashtag) {
+        return res.status(404).json({
+          success: false,
+          error: 'Хештег не найден'
+        });
+      }
+      
+      // Проверяем, можно ли удалить
+      // Можно удалять только свои хештеги (is_custom = true)
+      if (!hashtag.is_custom) {
+        return res.status(400).json({
+          success: false,
+          error: 'Нельзя удалить стандартный хештег'
+        });
+      }
+      
+      await hashtag.destroy();
+      
+      res.json({
+        success: true,
+        message: 'Хештег удалён'
+      });
+      
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: 'Не удалось удалить хештег'
+      });
+    }
+  },
+
+  // поиск хештегов
+  async search(req, res) {
+    try {
+      const { q } = req.query;
+      
+      if (!q) {
+        return res.json({
+          success: true,
+          hashtags: []
+        });
+      }
+      
+      const hashtags = await Hashtag.findAll({
+        where: {
+          tag_name: {
+            [Op.like]: `${q.toLowerCase()}%`  
+          }
+        },
+        limit: 10
+      });
+      
+      res.json({
+        success: true,
+        hashtags
+      });
+      
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        error: 'Ошибка поиска'
       });
     }
   }
