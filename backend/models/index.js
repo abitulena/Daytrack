@@ -1,7 +1,6 @@
-// models/index.js 
+// models/index.js
 import { sequelize, DataTypes, testConnection } from './init.js'; 
 
-// users
 const User = sequelize.define('User', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   login: { type: DataTypes.STRING(50), unique: true, allowNull: false },
@@ -16,7 +15,6 @@ const User = sequelize.define('User', {
   updatedAt: false
 });
 
-// emotions
 const Emotion = sequelize.define('Emotion', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   name: { type: DataTypes.STRING(50), unique: true, allowNull: false },
@@ -27,7 +25,6 @@ const Emotion = sequelize.define('Emotion', {
   timestamps: false
 });
 
-// sleep_quality
 const SleepQuality = sequelize.define('SleepQuality', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   name: { type: DataTypes.STRING(50), unique: true, allowNull: false },
@@ -38,7 +35,6 @@ const SleepQuality = sequelize.define('SleepQuality', {
   timestamps: false
 });
 
-// diary_entries
 const DiaryEntry = sequelize.define('DiaryEntry', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   user_id: { type: DataTypes.INTEGER, allowNull: false },
@@ -59,12 +55,10 @@ const DiaryEntry = sequelize.define('DiaryEntry', {
   ]
 });
 
-// hashtags
 const Hashtag = sequelize.define('Hashtag', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  user_id: { type: DataTypes.INTEGER, allowNull: false }, 
-  tag_name: { type: DataTypes.STRING(50), allowNull: false },
-  color: { type: DataTypes.STRING(7), defaultValue: '#000000' }
+  tag_name: { type: DataTypes.STRING(50), unique: true, allowNull: false }, 
+  is_custom: { type: DataTypes.BOOLEAN, defaultValue: false } 
 }, {
   tableName: 'hashtags',
   timestamps: true,
@@ -72,7 +66,6 @@ const Hashtag = sequelize.define('Hashtag', {
   updatedAt: false
 });
 
-// gallery_photos
 const GalleryPhoto = sequelize.define('GalleryPhoto', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   entry_id: { type: DataTypes.INTEGER, allowNull: false }, 
@@ -86,7 +79,6 @@ const GalleryPhoto = sequelize.define('GalleryPhoto', {
   updatedAt: false
 });
 
-// entry_hashtags
 const EntryHashtag = sequelize.define('EntryHashtag', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   entry_id: { type: DataTypes.INTEGER, allowNull: false },
@@ -98,15 +90,58 @@ const EntryHashtag = sequelize.define('EntryHashtag', {
   updatedAt: false
 });
 
-// СВЯЗИ МЕЖДУ МОДЕЛЯМИ 
+const Achievement = sequelize.define('Achievement', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  name: { type: DataTypes.STRING(50), unique: true, allowNull: false },
+  image_filename: { type: DataTypes.STRING(100) },
+  condition_type: { 
+    type: DataTypes.ENUM('first_entry', 'streak_5', 'streak_15', 'streak_30'),
+    allowNull: false 
+  },
+  display_order: { type: DataTypes.INTEGER, defaultValue: 0 }
+}, {
+  tableName: 'achievements',
+  timestamps: false
+});
+
+const UserAchievement = sequelize.define('UserAchievement', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  user_id: { type: DataTypes.INTEGER, allowNull: false },
+  achievement_id: { type: DataTypes.INTEGER, allowNull: false },
+  unlocked_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, {
+  tableName: 'user_achievements',
+  timestamps: false
+});
+
+const Event = sequelize.define('Event', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  user_id: { type: DataTypes.INTEGER, allowNull: false },
+  event_date: { type: DataTypes.DATEONLY, allowNull: false },
+  description: { type: DataTypes.TEXT, allowNull: false }
+}, {
+  tableName: 'events',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: false,
+  indexes: [
+    {
+      name: 'idx_events_user_date',
+      fields: ['user_id', 'event_date']
+    },
+    {
+      name: 'idx_events_date',
+      fields: ['event_date']
+    }
+  ]
+});
+
+
 User.hasMany(DiaryEntry, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 DiaryEntry.belongsTo(User, { foreignKey: 'user_id' });
 
 DiaryEntry.belongsTo(Emotion, { foreignKey: 'emotion_id' });
 DiaryEntry.belongsTo(SleepQuality, { foreignKey: 'sleep_id' });
-
-User.hasMany(Hashtag, { foreignKey: 'user_id', onDelete: 'CASCADE' });
-Hashtag.belongsTo(User, { foreignKey: 'user_id' });
 
 DiaryEntry.belongsToMany(Hashtag, {
   through: EntryHashtag, 
@@ -123,7 +158,26 @@ Hashtag.belongsToMany(DiaryEntry, {
 DiaryEntry.hasMany(GalleryPhoto, { foreignKey: 'entry_id', onDelete: 'CASCADE' });
 GalleryPhoto.belongsTo(DiaryEntry, { foreignKey: 'entry_id' });
 
-// ЭКСПОРТ ВСЕХ МОДЕЛЕЙ
+
+User.belongsToMany(Achievement, {
+  through: UserAchievement, 
+  foreignKey: 'user_id',
+  otherKey: 'achievement_id'
+});
+
+Achievement.belongsToMany(User, {
+  through: UserAchievement, 
+  foreignKey: 'achievement_id',
+  otherKey: 'user_id'
+});
+
+UserAchievement.belongsTo(User, { foreignKey: 'user_id' });
+UserAchievement.belongsTo(Achievement, { foreignKey: 'achievement_id' });
+
+
+User.hasMany(Event, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+Event.belongsTo(User, { foreignKey: 'user_id' });
+
 export { 
   sequelize,
   User,
@@ -133,5 +187,8 @@ export {
   Hashtag,
   GalleryPhoto,
   EntryHashtag,
+  Achievement,
+  UserAchievement,
+  Event,
   testConnection
 };
