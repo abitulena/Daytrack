@@ -2,12 +2,12 @@
 -- PostgreSQL database dump
 --
 
-\restrict niqNEhFd4kn9oLfHTLnhF0EzFcZoAZZ8QEZCBrErfWYUsxCGAj1JfjiZvilKhqO
+\restrict tHXQn5Ji40YtWsAZX1Q664kgvTeZkZWcbtks4SDLr6wdD9fLgYT74SwTTtR8TVa
 
 -- Dumped from database version 18.0
 -- Dumped by pg_dump version 18.0
 
--- Started on 2025-12-03 00:57:10
+-- Started on 2025-12-06 20:30:35
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -22,7 +22,7 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- TOC entry 5053 (class 0 OID 24776)
+-- TOC entry 5067 (class 0 OID 24776)
 -- Dependencies: 234
 -- Data for Name: achievements; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -36,7 +36,7 @@ COPY public.achievements (id, name, image_filename, condition_type, display_orde
 
 
 --
--- TOC entry 5045 (class 0 OID 16528)
+-- TOC entry 5059 (class 0 OID 16528)
 -- Dependencies: 226
 -- Data for Name: diary_entries; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -46,7 +46,7 @@ COPY public.diary_entries (id, user_id, entry_date, emotion_id, sleep_id, text_e
 
 
 --
--- TOC entry 5041 (class 0 OID 16502)
+-- TOC entry 5055 (class 0 OID 16502)
 -- Dependencies: 222
 -- Data for Name: emotions; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -64,7 +64,7 @@ COPY public.emotions (id, name, display_order, image_url) FROM stdin;
 
 
 --
--- TOC entry 5049 (class 0 OID 16591)
+-- TOC entry 5063 (class 0 OID 16591)
 -- Dependencies: 230
 -- Data for Name: entry_hashtags; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -74,7 +74,7 @@ COPY public.entry_hashtags (id, entry_id, hashtag_id, created_at) FROM stdin;
 
 
 --
--- TOC entry 5057 (class 0 OID 24834)
+-- TOC entry 5071 (class 0 OID 24834)
 -- Dependencies: 238
 -- Data for Name: events; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -84,7 +84,7 @@ COPY public.events (id, user_id, event_date, description, created_at) FROM stdin
 
 
 --
--- TOC entry 5047 (class 0 OID 16558)
+-- TOC entry 5061 (class 0 OID 16558)
 -- Dependencies: 228
 -- Data for Name: gallery_photos; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -94,7 +94,7 @@ COPY public.gallery_photos (id, entry_id, image_path, image_name, upload_order, 
 
 
 --
--- TOC entry 5050 (class 0 OID 24752)
+-- TOC entry 5064 (class 0 OID 24752)
 -- Dependencies: 231
 -- Data for Name: hashtags; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -115,11 +115,23 @@ COPY public.hashtags (id, tag_name, is_custom, created_at) FROM stdin;
 13	еда	f	2025-12-01 14:19:13.878
 14	тест	t	2025-12-01 14:19:59.387
 15	#мяу	t	2025-12-01 14:24:30.346
+17	мой_тестовый_хештег	t	2025-12-04 01:53:23.533
+18	мой_тестовый_хеш1тег	t	2025-12-04 02:03:25.129
 \.
 
 
 --
--- TOC entry 5043 (class 0 OID 16514)
+-- TOC entry 5073 (class 0 OID 24855)
+-- Dependencies: 240
+-- Data for Name: refresh_tokens; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.refresh_tokens (id, user_id, token, expires_at, created_at) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5057 (class 0 OID 16514)
 -- Dependencies: 224
 -- Data for Name: sleep_quality; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -137,7 +149,7 @@ COPY public.sleep_quality (id, name, display_order, image_url) FROM stdin;
 
 
 --
--- TOC entry 5055 (class 0 OID 24790)
+-- TOC entry 5069 (class 0 OID 24790)
 -- Dependencies: 236
 -- Data for Name: user_achievements; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -147,7 +159,7 @@ COPY public.user_achievements (id, user_id, achievement_id, unlocked_at) FROM st
 
 
 --
--- TOC entry 5039 (class 0 OID 16389)
+-- TOC entry 5053 (class 0 OID 16389)
 -- Dependencies: 220
 -- Data for Name: users; Type: TABLE DATA; Schema: public; Owner: postgres
 --
@@ -157,7 +169,7 @@ COPY public.users (id, email, login, password_hash, birth_date, gender, created_
 
 
 --
--- TOC entry 5073 (class 0 OID 0)
+-- TOC entry 5090 (class 0 OID 0)
 -- Dependencies: 233
 -- Name: achievements_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -166,7 +178,7 @@ SELECT pg_catalog.setval('public.achievements_id_seq', 4, true);
 
 
 --
--- TOC entry 5074 (class 0 OID 0)
+-- TOC entry 5091 (class 0 OID 0)
 -- Dependencies: 225
 -- Name: diary_entries_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -175,7 +187,7 @@ SELECT pg_catalog.setval('public.diary_entries_id_seq', 1, true);
 
 
 --
--- TOC entry 5075 (class 0 OID 0)
+-- TOC entry 5092 (class 0 OID 0)
 -- Dependencies: 221
 -- Name: emotions_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -184,7 +196,7 @@ SELECT pg_catalog.setval('public.emotions_id_seq', 9, true);
 
 
 --
--- TOC entry 5076 (class 0 OID 0)
+-- TOC entry 5093 (class 0 OID 0)
 -- Dependencies: 229
 -- Name: entry_hashtags_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -193,7 +205,7 @@ SELECT pg_catalog.setval('public.entry_hashtags_id_seq', 1, false);
 
 
 --
--- TOC entry 5077 (class 0 OID 0)
+-- TOC entry 5094 (class 0 OID 0)
 -- Dependencies: 237
 -- Name: events_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -202,7 +214,7 @@ SELECT pg_catalog.setval('public.events_id_seq', 1, false);
 
 
 --
--- TOC entry 5078 (class 0 OID 0)
+-- TOC entry 5095 (class 0 OID 0)
 -- Dependencies: 227
 -- Name: gallery_photos_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -211,16 +223,25 @@ SELECT pg_catalog.setval('public.gallery_photos_id_seq', 1, false);
 
 
 --
--- TOC entry 5079 (class 0 OID 0)
+-- TOC entry 5096 (class 0 OID 0)
 -- Dependencies: 232
 -- Name: hashtags_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.hashtags_id_seq', 15, true);
+SELECT pg_catalog.setval('public.hashtags_id_seq', 18, true);
 
 
 --
--- TOC entry 5080 (class 0 OID 0)
+-- TOC entry 5097 (class 0 OID 0)
+-- Dependencies: 239
+-- Name: refresh_tokens_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.refresh_tokens_id_seq', 1, false);
+
+
+--
+-- TOC entry 5098 (class 0 OID 0)
 -- Dependencies: 223
 -- Name: sleep_quality_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -229,7 +250,7 @@ SELECT pg_catalog.setval('public.sleep_quality_id_seq', 9, true);
 
 
 --
--- TOC entry 5081 (class 0 OID 0)
+-- TOC entry 5099 (class 0 OID 0)
 -- Dependencies: 235
 -- Name: user_achievements_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -238,7 +259,7 @@ SELECT pg_catalog.setval('public.user_achievements_id_seq', 1, false);
 
 
 --
--- TOC entry 5082 (class 0 OID 0)
+-- TOC entry 5100 (class 0 OID 0)
 -- Dependencies: 219
 -- Name: users_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -246,11 +267,11 @@ SELECT pg_catalog.setval('public.user_achievements_id_seq', 1, false);
 SELECT pg_catalog.setval('public.users_id_seq', 1, false);
 
 
--- Completed on 2025-12-03 00:57:11
+-- Completed on 2025-12-06 20:30:37
 
 --
 -- PostgreSQL database dump complete
 --
 
-\unrestrict niqNEhFd4kn9oLfHTLnhF0EzFcZoAZZ8QEZCBrErfWYUsxCGAj1JfjiZvilKhqO
+\unrestrict tHXQn5Ji40YtWsAZX1Q664kgvTeZkZWcbtks4SDLr6wdD9fLgYT74SwTTtR8TVa
 

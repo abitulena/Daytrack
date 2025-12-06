@@ -136,6 +136,42 @@ const Event = sequelize.define('Event', {
   ]
 });
 
+const RefreshToken = sequelize.define('RefreshToken', {
+  id: { 
+    type: DataTypes.INTEGER, 
+    primaryKey: true, 
+    autoIncrement: true 
+  },
+  user_id: { 
+    type: DataTypes.INTEGER, 
+    allowNull: false 
+  },
+  token: { 
+    type: DataTypes.TEXT, 
+    allowNull: false,
+    unique: true 
+  },
+  expires_at: { 
+    type: DataTypes.DATE, 
+    allowNull: false 
+  }
+}, {
+  tableName: 'refresh_tokens',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: false,
+  indexes: [
+    {
+      name: 'idx_refresh_tokens_token',
+      fields: ['token']
+    },
+    {
+      name: 'idx_refresh_tokens_user_id',
+      fields: ['user_id']
+    }
+  ]
+});
+
 
 User.hasMany(DiaryEntry, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 DiaryEntry.belongsTo(User, { foreignKey: 'user_id' });
@@ -178,6 +214,15 @@ UserAchievement.belongsTo(Achievement, { foreignKey: 'achievement_id' });
 User.hasMany(Event, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 Event.belongsTo(User, { foreignKey: 'user_id' });
 
+User.hasMany(RefreshToken, { 
+  foreignKey: 'user_id', 
+  onDelete: 'CASCADE' 
+});
+
+RefreshToken.belongsTo(User, { 
+  foreignKey: 'user_id' 
+});
+
 export { 
   sequelize,
   User,
@@ -190,5 +235,6 @@ export {
   Achievement,
   UserAchievement,
   Event,
+  RefreshToken,
   testConnection
 };
