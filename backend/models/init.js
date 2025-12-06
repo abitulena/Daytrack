@@ -1,13 +1,20 @@
 // models/init.js
 import { Sequelize, DataTypes } from 'sequelize';
 
+import dotenv from 'dotenv';
+dotenv.config();
 
-const sequelize = new Sequelize('daytrack', 'postgres', '88888', {
-  host: 'localhost',
-  dialect: 'postgres',
-  port: 5432, 
-  logging: false 
-});
+const sequelize = new Sequelize(
+  process.env.DB_NAME || 'daytrack',
+  process.env.DB_USER || 'postgres',
+  process.env.DB_PASSWORD || '88888',
+  {
+    host: process.env.DB_HOST || 'localhost',
+    dialect: 'postgres',
+    port: process.env.DB_PORT || 5432,
+    logging: false
+  }
+);
 
 
 async function testConnection() {
