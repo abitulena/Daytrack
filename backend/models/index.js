@@ -96,6 +96,19 @@ const EntryHashtag = sequelize.define('EntryHashtag', {
   updatedAt: false
 });
 
+
+const RefreshToken = sequelize.define('RefreshToken', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  user_id: { type: DataTypes.INTEGER, allowNull: false },
+  token: { type: DataTypes.TEXT, allowNull: false, unique: true },
+  expires_at: { type: DataTypes.DATE, allowNull: false },
+  created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, {
+  tableName: 'refresh_tokens',
+  timestamps: false
+});
+
+
 // СВЯЗИ МЕЖДУ МОДЕЛЯМИ 
 User.hasMany(DiaryEntry, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 DiaryEntry.belongsTo(User, { foreignKey: 'user_id' });
@@ -121,6 +134,9 @@ Hashtag.belongsToMany(DiaryEntry, {
 DiaryEntry.hasMany(GalleryPhoto, { foreignKey: 'entry_id', onDelete: 'CASCADE' });
 GalleryPhoto.belongsTo(DiaryEntry, { foreignKey: 'entry_id' });
 
+User.hasMany(RefreshToken, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+RefreshToken.belongsTo(User, { foreignKey: 'user_id' });
+
 // ЭКСПОРТ ВСЕХ МОДЕЛЕЙ
 export {
   sequelize,
@@ -131,5 +147,11 @@ export {
   Hashtag,
   GalleryPhoto,
   EntryHashtag,
+  RefreshToken,  
   testConnection
 };
+
+
+
+
+
