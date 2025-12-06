@@ -5,6 +5,9 @@ import { authenticateToken } from '../middleware/auth.js';
 const router = express.Router();
 
 router.get('/emotions', authenticateToken, getEmotions);
+
 router.get('/sleep-qualities', authenticateToken, getSleepQualities);
+
+
 
 export default router;
