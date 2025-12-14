@@ -223,6 +223,22 @@ RefreshToken.belongsTo(User, {
   foreignKey: 'user_id' 
 });
 
+Hashtag.hasMany(EntryHashtag, { 
+  foreignKey: 'hashtag_id',
+  onDelete: 'CASCADE'
+});
+EntryHashtag.belongsTo(Hashtag, { 
+  foreignKey: 'hashtag_id' 
+});
+
+EntryHashtag.belongsTo(DiaryEntry, { 
+  foreignKey: 'entry_id' 
+});
+DiaryEntry.hasMany(EntryHashtag, { 
+  foreignKey: 'entry_id',
+  onDelete: 'CASCADE'
+});
+
 export { 
   sequelize,
   User,
