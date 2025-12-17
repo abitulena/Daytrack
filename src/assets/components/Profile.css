@@ -1,0 +1,623 @@
+.profile-container {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  background: #BEAEDB;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.background-image {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  opacity: 0.5;
+  filter: brightness(1.1) saturate(1.2);
+}
+
+.welcome-text {
+  text-align: center;
+  width: 100%;
+  margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+  margin-top: 0;
+  max-width: 420px;
+}
+
+.welcome-part {
+  color: #3A2D34;
+  font-size: 1.8rem;
+  font-family: 'KyivType Sans', Arial, sans-serif;
+  font-weight: 840;
+  text-shadow: 0px 3px 3px rgba(151, 112, 169, 0.5);
+  line-height: 1.2;
+}
+
+.app-name {
+  color: white;
+  font-size: 1.8rem;
+  font-family: 'KyivType Sans', Arial, sans-serif;
+  font-weight: 840;
+  text-shadow: 0px 3px 3px rgba(151, 112, 169, 0.5);
+  line-height: 1.2;
+}
+
+.profile-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 420px;
+  margin-top: 0;
+}
+
+.profile-window {
+  width: 100%;
+  max-width: 380px;
+  height: auto;
+  min-height: 420px;
+  background: rgba(237, 221, 236, 0.9);
+  border-radius: 25px;
+  border: 2px solid rgba(237, 221, 236, 0.95);
+  padding: 20px 25px 15px 25px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 15px 30px rgba(151, 112, 169, 0.2);
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+.profile-title {
+  color: #3A2D34;
+  font-size: 1.6rem;
+  font-family: 'KyivType Sans', Arial, sans-serif;
+  font-weight: 840;
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+/* Стили для аватара */
+.avatar-section {
+  margin-bottom: 15px;
+  display: flex;
+  justify-content: center;
+}
+
+.avatar-preview {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  border: 2px solid #B998C8;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.avatar-preview:hover {
+  transform: scale(1.05);
+  border-color: #9770A9;
+}
+
+.avatar-preview:hover .avatar-overlay {
+  opacity: 1;
+}
+
+.avatar-image-large {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9770A9;
+  font-size: 26px;
+}
+
+.plus-icon {
+  font-size: 30px;
+  font-weight: 300;
+}
+
+.avatar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(63, 42, 82, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 50%;
+}
+
+.change-text {
+  color: white;
+  font-size: 10px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  text-align: center;
+}
+
+/* Стили формы */
+.user-info {
+  width: 100%;
+  margin-bottom: 15px;
+}
+
+.form-group {
+  position: relative;
+  margin-bottom: 12px;
+  width: 100%;
+}
+
+.label {
+  color: #9770A9;
+  font-size: 0.8rem;
+  font-family: 'KyivType Sans', Arial, sans-serif;
+  font-weight: 840;
+  margin-bottom: 5px;
+  display: block;
+}
+
+.input-field {
+  width: 100%;
+  height: 32px;
+  background: transparent !important;
+  border: none;
+  border-bottom: 2px solid rgba(237, 221, 236, 0.9);
+  color: #9770A9;
+  font-size: 0.85rem;
+  font-family: 'KyivType Sans', Arial, sans-serif;
+  padding: 5px 0;
+  outline: none;
+  transition: border-color 0.3s ease;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  caret-color: #9770A9;
+  box-sizing: border-box;
+}
+
+.input-field:-webkit-autofill,
+.input-field:-webkit-autofill:hover,
+.input-field:-webkit-autofill:focus,
+.input-field:-webkit-autofill:active {
+  -webkit-text-fill-color: #9770A9 !important;
+  -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+  background: transparent !important;
+  border-bottom: 2px solid rgba(237, 221, 236, 0.9);
+  font-family: 'KyivType Sans', Arial, sans-serif;
+  font-size: 0.85rem;
+}
+
+.input-field:focus {
+  border-bottom-color: #B998C8;
+  background: transparent !important;
+  outline: none;
+  box-shadow: none;
+}
+
+.input-field::placeholder {
+  color: rgba(151, 112, 169, 0.6);
+  font-size: 0.8rem;
+  font-family: 'KyivType Sans', Arial, sans-serif;
+}
+
+.input-field:read-only {
+  color: rgba(151, 112, 169, 0.7);
+  cursor: not-allowed;
+}
+
+.input-field:focus-visible {
+  outline: none;
+}
+
+.input-field:active {
+  background: transparent !important;
+}
+
+/* Кнопки действий */
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  margin-top: 8px;
+  gap: 8px;
+}
+
+.save-btn {
+  width: 100%;
+  height: 40px;
+  background: #CFB9F2;
+  border-radius: 22px;
+  border: 2px solid rgba(237, 221, 236, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #3A2D34;
+  font-size: 0.9rem;
+  font-family: 'KyivType Sans', Arial, sans-serif;
+  font-weight: 840;
+  box-sizing: border-box;
+}
+
+.save-btn:hover {
+  background: #B998C8;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(151, 112, 169, 0.2);
+}
+
+.home-btn {
+  width: 100%;
+  height: 40px;
+  background: #B998C8;
+  border-radius: 22px;
+  border: 2px solid rgba(237, 221, 236, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white;
+  font-size: 0.9rem;
+  font-family: 'KyivType Sans', Arial, sans-serif;
+  font-weight: 840;
+  box-sizing: border-box;
+}
+
+.home-btn:hover {
+  background: #A589B3;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(151, 112, 169, 0.2);
+}
+
+.logout-btn {
+  width: 100%;
+  height: 40px;
+  background: #e74c3c;
+  border-radius: 22px;
+  border: 2px solid rgba(237, 221, 236, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: white;
+  font-size: 0.9rem;
+  font-family: 'KyivType Sans', Arial, sans-serif;
+  font-weight: 840;
+  box-sizing: border-box;
+}
+
+.logout-btn:hover {
+  background: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(220, 53, 69, 0.2);
+}
+
+/* АДАПТИВНОСТЬ ДЛЯ МОБИЛЬНЫХ */
+
+@media (max-width: 480px) {
+  .profile-container {
+    padding: 15px;
+  }
+  
+  .profile-window {
+    max-width: 320px;
+    min-height: 380px;
+    padding: 15px 20px 10px 20px;
+    border-radius: 20px;
+  }
+  
+  .welcome-text {
+    max-width: 320px;
+  }
+  
+  .welcome-part,
+  .app-name {
+    font-size: 1.5rem;
+  }
+  
+  .profile-title {
+    font-size: 1.4rem;
+    margin-bottom: 12px;
+  }
+  
+  .avatar-preview {
+    width: 80px;
+    height: 80px;
+  }
+  
+  .avatar-placeholder {
+    font-size: 24px;
+  }
+  
+  .plus-icon {
+    font-size: 26px;
+  }
+  
+  .label {
+    font-size: 0.75rem;
+  }
+  
+  .input-field {
+    height: 30px;
+    font-size: 0.8rem;
+  }
+  
+  .save-btn,
+  .home-btn,
+  .logout-btn {
+    height: 38px;
+    font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .profile-container {
+    padding: 10px;
+  }
+  
+  .profile-window {
+    max-width: 280px;
+    min-height: 350px;
+    padding: 12px 15px 8px 15px;
+    border-radius: 18px;
+  }
+  
+  .welcome-text {
+    max-width: 280px;
+  }
+  
+  .welcome-part,
+  .app-name {
+    font-size: 1.3rem;
+  }
+  
+  .profile-title {
+    font-size: 1.2rem;
+    margin-bottom: 10px;
+  }
+  
+  .avatar-preview {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .avatar-placeholder {
+    font-size: 22px;
+  }
+  
+  .plus-icon {
+    font-size: 24px;
+  }
+  
+  .action-buttons {
+    gap: 6px;
+  }
+  
+  .save-btn,
+  .home-btn,
+  .logout-btn {
+    height: 36px;
+    font-size: 0.8rem;
+  }
+}
+
+/* Для очень высоких экранов */
+@media (min-height: 800px) {
+  .profile-window {
+    min-height: 450px;
+  }
+}
+
+/* Для ландшафтной ориентации на мобильных */
+@media (max-width: 768px) and (orientation: landscape) {
+  .profile-container {
+    padding: 10px;
+  }
+  
+  .profile-window {
+    max-width: 500px;
+    min-height: 300px;
+    padding: 15px 20px 10px 20px;
+  }
+  
+  .welcome-text {
+    max-width: 500px;
+  }
+  
+  .profile-content {
+    max-width: 500px;
+  }
+  
+  .user-info {
+    margin-bottom: 10px;
+  }
+  
+  .action-buttons {
+    margin-top: 5px;
+    gap: 6px;
+  }
+  
+  .save-btn,
+  .home-btn,
+  .logout-btn {
+    height: 36px;
+  }
+}
+/* Стили для модального окна подтверждения выхода */
+.logout-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.logout-modal {
+  background: rgba(237, 221, 236, 0.98);
+  border-radius: 20px;
+  padding: 25px;
+  width: 400px;
+  max-width: 90vw;
+  border: 2px solid #BEAEDB;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.4s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.logout-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(190, 174, 219, 0.5);
+}
+
+.logout-modal-title {
+  color: #3F2A52;
+  font-size: 20px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  letter-spacing: 0.5px;
+}
+
+.logout-modal-close {
+  background: rgba(190, 174, 219, 0.3);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 18px;
+  color: #3F2A52;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.logout-modal-close:hover {
+  background: rgba(190, 174, 219, 0.5);
+  transform: scale(1.1);
+}
+
+.logout-modal-content {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.logout-modal-content p {
+  color: #6D5D7A;
+  font-size: 16px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.logout-warning {
+  font-size: 14px !important;
+  color: #9770A9 !important;
+  font-style: italic;
+}
+
+.logout-modal-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.logout-modal-cancel {
+  flex: 1;
+  height: 45px;
+  background: #CFB9F2;
+  border-radius: 22px;
+  border: 2px solid rgba(237, 221, 236, 0.9);
+  color: #3F2A52;
+  font-size: 0.9rem;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.logout-modal-cancel:hover {
+  background: #B998C8;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(151, 112, 169, 0.2);
+}
+
+.logout-modal-confirm {
+  flex: 1;
+  height: 45px;
+  background: #e74c3c;
+  border-radius: 22px;
+  border: 2px solid rgba(237, 221, 236, 0.9);
+  color: white;
+  font-size: 0.9rem;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.logout-modal-confirm:hover {
+  background: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(220, 53, 69, 0.2);
+}
