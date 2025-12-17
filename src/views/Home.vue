@@ -6,6 +6,9 @@
     <!-- Шапка страницы -->
     <Header />
     
+    <!-- Компонент уведомлений -->
+    <notifications position="top right" width="400" :max="3" :duration="8000" />
+    
     <!-- Основной контент -->
     <div class="main-content">
       <!-- Левая колонка -->
@@ -23,10 +26,9 @@
                 class="emoji-item"
                 :class="{ 'selected': selectedMood === mood.id }"
                 @click="selectMood(mood.id)"
-                @mouseenter="showTooltip($event, mood.name)"
-                @mouseleave="hideTooltip"
               >
                 <img :src="mood.image" :alt="mood.name" class="emoji-img" />
+                <div class="emoji-tooltip">{{ mood.name }}</div>
               </div>
             </div>
           </div>
@@ -45,15 +47,14 @@
                 class="emoji-item"
                 :class="{ 'selected': selectedSleep === sleep.id }"
                 @click="selectSleep(sleep.id)"
-                @mouseenter="showTooltip($event, sleep.name)"
-                @mouseleave="hideTooltip"
               >
                 <img :src="sleep.image" :alt="sleep.name" class="emoji-img" />
+                <div class="emoji-tooltip">{{ sleep.name }}</div>
               </div>
             </div>
           </div>
         </div>
-        
+          
         <!-- Календарь -->
         <div class="calendar-section">
           <div class="section-background"></div>
@@ -81,15 +82,13 @@
                   'other-month': !day.isCurrentMonth,
                   'today': day.isToday,
                   'selected': day.isSelected,
-                  'has-mood': hasMoodData(day.date),
-                  'has-sleep': hasSleepData(day.date),
-                  'has-notes': hasNotesData(day.date),
-                  'has-event': hasEventData(day.date)
+                  'disabled': isFutureDate(day.date)
                 }"
                 @click="selectDate(day)"
-                @dblclick="openEventModal(day)"
+                @dblclick="handleDayDoubleClick(day)"
               >
                 {{ day.number }}
+                <!-- Индикаторы данных -->
                 <div class="day-indicators">
                   <div v-if="hasMoodData(day.date)" class="mood-indicator"></div>
                   <div v-if="hasSleepData(day.date)" class="sleep-indicator"></div>
@@ -111,14 +110,21 @@
             <div class="section-title">записи</div>
             <div class="notes-content">
               <div class="notes-text-with-lines">
-                <div 
-                  v-for="(line, index) in displayLines" 
-                  :key="index"
-                  class="text-line-container"
-                >
-                  <div class="text-line">{{ line }}</div>
-                  <div class="line-under-text"></div>
-                </div>
+                <template v-if="displayLines.length > 0">
+                  <div 
+                    v-for="(line, index) in displayLines" 
+                    :key="index"
+                    class="text-line-container"
+                  >
+                    <div class="text-line">{{ line }}</div>
+                    <div class="line-under-text"></div>
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="empty-notes-message">
+                    Нажмите, чтобы добавить запись
+                  </div>
+                </template>
               </div>
             </div>
           </div>
@@ -134,11 +140,15 @@
             <div class="section-title">галерея</div>
             <div class="gallery-image-container">
               <img 
+                :key="galleryImageKey" 
                 :src="currentGalleryImage" 
                 alt="Gallery" 
                 class="gallery-image" 
                 @error="handleImageError"
               />
+              <div v-if="!galleryImagesData.length" class="empty-gallery-message">
+                Нет изображений
+              </div>
             </div>
           </div>
         </div>
@@ -159,31 +169,31 @@
                   :key="achievement.id"
                   class="achievement-item"
                   :class="{ 'unlocked': achievement.unlocked }"
-                  @mouseenter="showTooltip($event, achievement.description)"
-                  @mouseleave="hideTooltip"
+                  @mouseover="currentAchievementId = achievement.id"
+                  @mouseleave="currentAchievementId = null"
                 >
                   <img 
                     :src="achievement.unlocked ? achievement.image : achievement.lockedImage" 
-                    :alt="achievement.name" 
+                    :alt="achievement.shortName" 
                     class="achievement-img"
                   />
-                  <div class="achievement-name">{{ achievement.name }}</div>
+                  <div class="achievement-name">{{ achievement.shortName }}</div>
                   <div class="achievement-progress" v-if="!achievement.unlocked && achievement.progress">
                     {{ achievement.progress.current }}/{{ achievement.progress.total }}
+                  </div>
+                  <!-- Подсказка достижения -->
+                  <div 
+                    class="achievement-tooltip"
+                    :class="{ 'visible': currentAchievementId === achievement.id }"
+                  >
+                    <div class="tooltip-title">{{ achievement.name }}</div>
+                    <div class="tooltip-description">{{ achievement.description }}</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- Уведомление о достижении -->
-    <div v-if="achievementNotificationVisible" class="achievement-notification">
-      <div class="achievement-notification-content">
-        <div class="achievement-notification-title">🎉 Поздравляем!</div>
-        <div class="achievement-notification-text">Вы получили достижение: "{{ newAchievement.name }}"</div>
       </div>
     </div>
 
@@ -202,34 +212,27 @@
           class="event-modal-textarea"
           placeholder="Опишите ваше событие..."
           maxlength="200"
+          @input="handleTextareaInput"
         ></textarea>
         <div class="event-modal-chars">{{ eventModalText.length }}/200</div>
         <div class="event-modal-actions">
           <button v-if="hasEventData(eventModalDate)" class="event-delete-btn" @click="deleteEvent">
             удалить
           </button>
-          <button class="event-save-btn" @click="saveEvent">
+          <button class="event-save-btn" @click="saveEvent" :disabled="!eventModalText.trim()">
             {{ hasEventData(eventModalDate) ? 'сохранить' : 'добавить' }}
           </button>
         </div>
       </div>
     </div>
-
-    <!-- Подсказки -->
-    <div 
-      v-if="tooltipVisible" 
-      class="tooltip" 
-      :style="{ left: tooltipX + 'px', top: tooltipY + 'px' }"
-    >
-      {{ tooltipText }}
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import Header from '@/components/Header.vue'
+import { notify } from "@kyvg/vue3-notification"
 
 // Импорты изображений
 import Грустный from '@/assets/Грустный.png'
@@ -258,306 +261,95 @@ const currentDate = ref(new Date())
 const selectedDate = ref(new Date())
 const selectedMood = ref(null)
 const selectedSleep = ref(null)
-const tooltipVisible = ref(false)
-const tooltipText = ref('')
-const tooltipX = ref(0)
-const tooltipY = ref(0)
 const eventModalVisible = ref(false)
 const eventModalDate = ref(null)
 const eventModalText = ref('')
-const randomGalleryIndex = ref(0)
-const achievementNotificationVisible = ref(false)
-const newAchievement = ref({})
 const currentStreak = ref(0)
 const maxStreak = ref(0)
+const galleryImageKey = ref(0)
+const randomGalleryImageIndex = ref(-1)
+const currentAchievementId = ref(null)
 
 // Данные из localStorage
 const moodData = ref({})
 const sleepData = ref({})
 const notesData = ref({})
 const eventData = ref({})
-const galleryData = ref([])
 const achievementsData = ref({})
+const galleryImagesData = ref([])
+
+// Флаг для отслеживания событий
+const eventCheckInterval = ref(null)
 
 // Достижения
 const achievements = ref([
   {
     id: 1,
     name: 'Первая запись',
+    shortName: 'Первая запись',
     description: 'Создайте первую запись в дневнике',
     image: AchievementFirstEntry,
     lockedImage: AchievementLocked,
     unlocked: false,
     condition: 1,
-    type: 'total_entries',
+    type: 'notes_entry',
     progress: { current: 0, total: 1 }
   },
   {
     id: 2,
     name: 'Серия из 5 дней',
+    shortName: '5 дней',
     description: 'Ведите дневник 5 дней подряд',
     image: Achievement5Days,
     lockedImage: AchievementLocked,
     unlocked: false,
     condition: 5,
-    type: 'streak',
+    type: 'notes_streak',
     progress: { current: 0, total: 5 }
   },
   {
     id: 3,
     name: 'Серия из 15 дней',
+    shortName: '15 дней',
     description: 'Ведите дневник 15 дней подряд',
     image: Achievement15Days,
     lockedImage: AchievementLocked,
     unlocked: false,
     condition: 15,
-    type: 'streak',
+    type: 'notes_streak',
     progress: { current: 0, total: 15 }
   },
   {
     id: 4,
     name: 'Серия из 30 дней',
+    shortName: '30 дней',
     description: 'Ведите дневник 30 дней подряд',
     image: Achievement30Days,
     lockedImage: AchievementLocked,
     unlocked: false,
     condition: 30,
-    type: 'streak',
+    type: 'notes_streak',
     progress: { current: 0, total: 30 }
   }
 ])
 
-// IndexedDB константы
-const DB_NAME = 'GalleryDB'
-const DB_VERSION = 1
-const STORE_NAME = 'images'
-
 // Константы
 const weekDays = ['пн', 'вт', 'ср', 'чт', 'пт', 'сб', 'вс']
 const moods = [
-  { id: 1, name: 'Грустный', image: Грустный },
-  { id: 2, name: 'Нейтральный', image: Нейтральный },
-  { id: 3, name: 'Спокойный', image: Спокойный },
-  { id: 4, name: 'Радостный', image: Радостный },
-  { id: 5, name: 'Счастлив', image: Счастлив }
+  { id: 1, name: 'Грустный', shortName: 'грустный', image: Грустный },
+  { id: 2, name: 'Нейтральный', shortName: 'нейтральный', image: Нейтральный },
+  { id: 3, name: 'Спокойный', shortName: 'спокойный', image: Спокойный },
+  { id: 4, name: 'Радостный', shortName: 'радостный', image: Радостный },
+  { id: 5, name: 'Счастлив', shortName: 'счастлив', image: Счастлив }
 ]
 
 const sleepQuality = [
-  { id: 1, name: 'Отлично поспал', image: ОтличноПоспал },
-  { id: 2, name: 'Хорошо поспал', image: ХорошоПоспал },
-  { id: 3, name: 'Нормальный сон', image: Нормально },
-  { id: 4, name: 'Плохо спал', image: ПлохоСпал },
-  { id: 5, name: 'Бессоница', image: Бессоница }
+  { id: 1, name: 'Отлично поспал', shortName: 'отлично', image: ОтличноПоспал },
+  { id: 2, name: 'Хорошо поспал', shortName: 'хорошо', image: ХорошоПоспал },
+  { id: 3, name: 'Нормальный сон', shortName: 'нормально', image: Нормально },
+  { id: 4, name: 'Плохо спал', shortName: 'плохо', image: ПлохоСпал },
+  { id: 5, name: 'Бессоница', shortName: 'бессоница', image: Бессоница }
 ]
-
-// Инициализация IndexedDB
-const initDB = () => {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION)
-    
-    request.onerror = () => reject(request.error)
-    request.onsuccess = () => resolve(request.result)
-    
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
-        store.createIndex('timestamp', 'timestamp', { unique: false })
-      }
-    }
-  })
-}
-
-// Загрузка всех изображений из IndexedDB
-const loadGalleryImagesFromDB = async () => {
-  try {
-    const db = await initDB()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readonly')
-      const store = transaction.objectStore(STORE_NAME)
-      const request = store.getAll()
-      
-      request.onsuccess = () => {
-        const images = request.result.map(item => ({
-          id: item.id,
-          url: URL.createObjectURL(item.file),
-          name: `photo_${item.id}`,
-          size: item.file.size,
-          uploadedAt: new Date(item.timestamp).toISOString()
-        }))
-        resolve(images)
-      }
-      
-      request.onerror = () => reject(request.error)
-    })
-  } catch (error) {
-    console.error('Ошибка загрузки галереи из IndexedDB:', error)
-    return []
-  }
-}
-
-// Генерация случайного индекса
-const generateRandomIndex = (max) => {
-  return Math.floor(Math.random() * max)
-}
-
-// Расчет количества записей
-const calculateTotalEntries = () => {
-  const allEntries = new Set()
-  
-  Object.keys(moodData.value).forEach(date => allEntries.add(date))
-  Object.keys(sleepData.value).forEach(date => allEntries.add(date))
-  Object.keys(notesData.value).forEach(date => allEntries.add(date))
-  Object.keys(eventData.value).forEach(date => allEntries.add(date))
-  
-  return allEntries.size
-}
-
-// Расчет текущей серии записей
-const calculateStreak = () => {
-  const allDates = getAllRecordDates()
-  if (allDates.length === 0) {
-    currentStreak.value = 0
-    return
-  }
-
-  const sortedDates = allDates.sort((a, b) => new Date(b) - new Date(a))
-  
-  let streak = 0
-  let currentDate = new Date()
-  currentDate.setHours(0, 0, 0, 0)
-  
-  for (let i = 0; i < sortedDates.length; i++) {
-    const recordDate = new Date(sortedDates[i])
-    recordDate.setHours(0, 0, 0, 0)
-    
-    const diffTime = Math.abs(currentDate - recordDate)
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
-    if (diffDays === 0) {
-      continue
-    } else if (diffDays === 1) {
-      streak++
-      currentDate = recordDate
-    } else {
-      break
-    }
-  }
-  
-  const today = new Date().toDateString()
-  if (allDates.includes(today)) {
-    streak++
-  }
-  
-  currentStreak.value = streak
-}
-
-// Получение всех дат с записями
-const getAllRecordDates = () => {
-  const dates = new Set()
-  
-  Object.keys(moodData.value).forEach(date => dates.add(date))
-  Object.keys(sleepData.value).forEach(date => dates.add(date))
-  Object.keys(notesData.value).forEach(date => dates.add(date))
-  Object.keys(eventData.value).forEach(date => dates.add(date))
-  
-  return Array.from(dates)
-}
-
-// Расчет максимальной серии
-const calculateMaxStreak = () => {
-  const allDates = getAllRecordDates()
-  if (allDates.length === 0) {
-    maxStreak.value = 0
-    return
-  }
-
-  const sortedDates = allDates.sort((a, b) => new Date(a) - new Date(b))
-  
-  let maxStreakCount = 1
-  let currentStreakCount = 1
-  
-  for (let i = 1; i < sortedDates.length; i++) {
-    const prevDate = new Date(sortedDates[i - 1])
-    const currentDate = new Date(sortedDates[i])
-    
-    const diffTime = Math.abs(currentDate - prevDate)
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
-    if (diffDays === 1) {
-      currentStreakCount++
-      maxStreakCount = Math.max(maxStreakCount, currentStreakCount)
-    } else {
-      currentStreakCount = 1
-    }
-  }
-  
-  maxStreak.value = maxStreakCount
-}
-
-// Обновление прогресса достижений
-const updateAchievementsProgress = () => {
-  const totalEntries = calculateTotalEntries()
-  
-  achievements.value.forEach(achievement => {
-    if (achievement.unlocked) {
-      achievement.progress.current = achievement.progress.total
-    } else {
-      if (achievement.type === 'total_entries') {
-        achievement.progress.current = Math.min(totalEntries, achievement.progress.total)
-      } else if (achievement.type === 'streak') {
-        achievement.progress.current = Math.min(currentStreak.value, achievement.progress.total)
-      }
-    }
-  })
-}
-
-// Проверка и разблокировка достижений
-const checkAchievements = () => {
-  const unlockedAchievements = achievementsData.value.unlocked || []
-  let newAchievementUnlocked = false
-  
-  const totalEntries = calculateTotalEntries()
-  
-  achievements.value.forEach(achievement => {
-    if (unlockedAchievements.includes(achievement.id)) {
-      achievement.unlocked = true
-      return
-    }
-    
-    let shouldUnlock = false
-    
-    if (achievement.type === 'total_entries') {
-      shouldUnlock = totalEntries >= achievement.condition
-    } else if (achievement.type === 'streak') {
-      shouldUnlock = currentStreak.value >= achievement.condition
-    }
-    
-    if (shouldUnlock && !achievement.unlocked) {
-      achievement.unlocked = true
-      unlockedAchievements.push(achievement.id)
-      if (!newAchievementUnlocked) {
-        newAchievement.value = achievement
-        showAchievementNotification()
-        newAchievementUnlocked = true
-      }
-    }
-  })
-  
-  achievementsData.value.unlocked = unlockedAchievements
-  localStorage.setItem('daytrack_achievements_data', JSON.stringify(achievementsData.value))
-  
-  updateAchievementsProgress()
-}
-
-// Показ уведомления о достижении
-const showAchievementNotification = () => {
-  achievementNotificationVisible.value = true
-  setTimeout(() => {
-    achievementNotificationVisible.value = false
-  }, 3000)
-}
 
 // Вычисляемые свойства
 const currentYear = computed(() => currentDate.value.getFullYear())
@@ -629,80 +421,195 @@ const calendarDays = computed(() => {
   return days
 })
 
+// Получаем запись для выбранной даты
 const selectedDateNotes = computed(() => {
   const dateKey = selectedDate.value.toDateString()
-  return notesData.value[dateKey]?.text || ''
+  const note = notesData.value[dateKey]
+  return note?.text || ''
 })
 
+// Отображаем строки записи в плашке
 const displayLines = computed(() => {
-  if (!selectedDateNotes.value) {
-    return Array(11).fill('')
+  const text = selectedDateNotes.value
+  
+  if (!text || text.trim() === '') {
+    return []
   }
   
-  const text = selectedDateNotes.value
   const lines = []
-  const words = text.split(' ')
   let currentLine = ''
-  const maxLineLength = 30
+  const maxLineLength = 35
   const maxLines = 11
   
-  for (const word of words) {
-    if ((currentLine + ' ' + word).length <= maxLineLength) {
-      currentLine = currentLine ? currentLine + ' ' + word : word
-    } else {
-      if (currentLine) {
-        lines.push(currentLine)
-        currentLine = word
+  // Разбиваем текст на строки по символам новой строки
+  const paragraphs = text.split('\n')
+  
+  for (const paragraph of paragraphs) {
+    if (paragraph.trim() === '') continue
+    
+    const words = paragraph.split(' ')
+    
+    for (const word of words) {
+      if ((currentLine + (currentLine ? ' ' : '') + word).length <= maxLineLength) {
+        currentLine = currentLine ? currentLine + ' ' + word : word
+      } else {
+        if (currentLine) {
+          lines.push(currentLine)
+          currentLine = word
+        }
+        
+        if (lines.length >= maxLines) break
       }
-      if (lines.length >= maxLines) break
     }
+    
+    if (currentLine && lines.length < maxLines) {
+      lines.push(currentLine)
+      currentLine = ''
+    }
+    
+    if (lines.length >= maxLines) break
   }
   
+  // Добавляем последнюю строку если есть
   if (currentLine && lines.length < maxLines) {
     lines.push(currentLine)
   }
   
-  while (lines.length < maxLines) {
+  // Если строк меньше 11, заполняем пустыми
+  while (lines.length < maxLines && lines.length < 11) {
     lines.push('')
   }
   
   return lines.slice(0, maxLines)
 })
 
+// Получение случайного изображения галереи
 const currentGalleryImage = computed(() => {
-  if (!galleryData.value || !Array.isArray(galleryData.value) || galleryData.value.length === 0) {
+  if (!galleryImagesData.value || galleryImagesData.value.length === 0) {
     return GalleryDefault
   }
   
-  const validImages = galleryData.value.filter(img => 
-    img && 
-    img.url && 
-    typeof img.url === 'string' && 
-    img.url.startsWith('blob:')
-  )
+  // Если индекс еще не установлен или вышел за границы
+  if (randomGalleryImageIndex.value === -1 || 
+      randomGalleryImageIndex.value >= galleryImagesData.value.length) {
+    randomGalleryImageIndex.value = Math.floor(Math.random() * galleryImagesData.value.length)
+  }
   
-  if (validImages.length === 0) {
+  const imageInfo = galleryImagesData.value[randomGalleryImageIndex.value]
+  
+  if (!imageInfo || !imageInfo.id) {
     return GalleryDefault
   }
   
-  const selectedImage = validImages[randomGalleryIndex.value]?.url
-  return selectedImage || GalleryDefault
+  // Пытаемся получить URL из кеша
+  const cacheKey = `gallery_image_${imageInfo.id}`
+  const cachedUrl = localStorage.getItem(cacheKey)
+  
+  if (cachedUrl) {
+    try {
+      // Проверяем, валиден ли URL
+      new URL(cachedUrl)
+      return cachedUrl
+    } catch (error) {
+      localStorage.removeItem(cacheKey)
+    }
+  }
+  
+  return GalleryDefault
 })
 
-// Методы
-const loadStoredData = async () => {
+// Получение ключа для данных пользователя
+const getUserKey = (baseKey) => {
+  const userId = localStorage.getItem('daytrack_user_id')
+  if (!userId) {
+    // Если пользователь не зарегистрирован, возвращаем ключ по умолчанию
+    return baseKey
+  }
+  return `${baseKey}_${userId}`
+}
+
+// Проверка, является ли пользователь новым
+const isNewUser = () => {
+  const userId = localStorage.getItem('daytrack_user_id')
+  if (!userId) return true
+  
+  const userKey = getUserKey('daytrack_is_new_user')
+  return localStorage.getItem(userKey) === null
+}
+
+// Инициализация данных для нового пользователя
+const initializeNewUserData = () => {
+  const userId = localStorage.getItem('daytrack_user_id')
+  if (!userId) return
+  
+  console.log('👤 Инициализация данных для нового пользователя:', userId)
+  
+  // Инициализируем все типы данных
+  const dataTypes = [
+    'daytrack_mood_data',
+    'daytrack_sleep_data',
+    'daytrack_notes_data',
+    'daytrack_event_data',
+    'daytrack_achievements_data',
+    'daytrack_gallery_data',
+    'daytrack_custom_hashtags'
+  ]
+  
+  dataTypes.forEach(dataType => {
+    const userKey = getUserKey(dataType)
+    const existingData = localStorage.getItem(userKey)
+    
+    if (!existingData) {
+      if (dataType === 'daytrack_achievements_data') {
+        localStorage.setItem(userKey, JSON.stringify({ unlocked: [], lastCheck: null }))
+      } else if (dataType === 'daytrack_gallery_data') {
+        localStorage.setItem(userKey, JSON.stringify([]))
+      } else if (dataType === 'daytrack_custom_hashtags') {
+        localStorage.setItem(userKey, JSON.stringify([]))
+      } else {
+        localStorage.setItem(userKey, JSON.stringify({}))
+      }
+    }
+  })
+  
+  // Помечаем пользователя как инициализированного
+  const userKey = getUserKey('daytrack_is_new_user')
+  localStorage.setItem(userKey, 'false')
+}
+
+// Основные методы
+const loadStoredData = () => {
+  console.log('🔄 Загрузка данных из localStorage')
+  
   try {
-    const storedMoodData = localStorage.getItem('daytrack_mood_data')
-    const storedSleepData = localStorage.getItem('daytrack_sleep_data')
-    const storedNotesData = localStorage.getItem('daytrack_notes_data')
-    const storedEventData = localStorage.getItem('daytrack_event_data')
-    const storedAchievementsData = localStorage.getItem('daytrack_achievements_data')
-
-    if (storedMoodData) moodData.value = JSON.parse(storedMoodData)
-    if (storedSleepData) sleepData.value = JSON.parse(storedSleepData)
-    if (storedNotesData) notesData.value = JSON.parse(storedNotesData)
-    if (storedEventData) eventData.value = JSON.parse(storedEventData)
-
+    // Проверяем, является ли пользователь новым
+    if (isNewUser()) {
+      initializeNewUserData()
+    }
+    
+    // Настроение
+    const moodKey = getUserKey('daytrack_mood_data')
+    const storedMoodData = localStorage.getItem(moodKey)
+    moodData.value = storedMoodData ? JSON.parse(storedMoodData) : {}
+    
+    // Сон
+    const sleepKey = getUserKey('daytrack_sleep_data')
+    const storedSleepData = localStorage.getItem(sleepKey)
+    sleepData.value = storedSleepData ? JSON.parse(storedSleepData) : {}
+    
+    // Записи
+    const notesKey = getUserKey('daytrack_notes_data')
+    const storedNotesData = localStorage.getItem(notesKey)
+    notesData.value = storedNotesData ? JSON.parse(storedNotesData) : {}
+    
+    // События
+    const eventKey = getUserKey('daytrack_event_data')
+    const storedEventData = localStorage.getItem(eventKey)
+    eventData.value = storedEventData ? JSON.parse(storedEventData) : {}
+    
+    // Достижения
+    const achievementsKey = getUserKey('daytrack_achievements_data')
+    const storedAchievementsData = localStorage.getItem(achievementsKey)
     if (storedAchievementsData) {
       achievementsData.value = JSON.parse(storedAchievementsData)
       const unlockedIds = achievementsData.value.unlocked || []
@@ -710,28 +617,47 @@ const loadStoredData = async () => {
         achievement.unlocked = unlockedIds.includes(achievement.id)
       })
     } else {
-      achievementsData.value = { unlocked: [] }
-    }
-
-    const images = await loadGalleryImagesFromDB()
-    galleryData.value = images
-    
-    if (images.length > 0) {
-      const validImages = images.filter(img => 
-        img && img.url && typeof img.url === 'string' && img.url.startsWith('blob:')
-      )
-      if (validImages.length > 0) {
-        randomGalleryIndex.value = generateRandomIndex(validImages.length)
-      }
+      achievementsData.value = { unlocked: [], lastCheck: null }
     }
     
+    // Загружаем галерею
+    loadGalleryData()
+    
+    // Рассчитываем статистику
     calculateStreak()
     calculateMaxStreak()
     updateAchievementsProgress()
     checkAchievements()
+    checkEventNotifications()
     
   } catch (error) {
-    console.error('Ошибка загрузки данных:', error)
+    console.error('❌ Критическая ошибка загрузки данных:', error)
+  }
+}
+
+// Загрузка данных галереи
+const loadGalleryData = () => {
+  try {
+    const galleryKey = getUserKey('daytrack_gallery_data')
+    const storedGalleryData = localStorage.getItem(galleryKey)
+    galleryImagesData.value = storedGalleryData ? JSON.parse(storedGalleryData) : []
+    
+    // Фильтруем некорректные записи
+    galleryImagesData.value = galleryImagesData.value.filter(img => img && img.id)
+    
+    // Если есть изображения, выбираем случайное
+    if (galleryImagesData.value.length > 0) {
+      randomGalleryImageIndex.value = Math.floor(Math.random() * galleryImagesData.value.length)
+    } else {
+      randomGalleryImageIndex.value = -1
+    }
+    
+    // Форсируем обновление изображения
+    galleryImageKey.value = Date.now()
+    
+  } catch (error) {
+    console.error('❌ Ошибка загрузки галереи:', error)
+    galleryImagesData.value = []
   }
 }
 
@@ -741,6 +667,26 @@ const loadSelectedDateData = () => {
   selectedSleep.value = sleepData.value[dateKey] || null
 }
 
+const selectMood = (moodId) => {
+  if (isFutureDate(selectedDate.value)) {
+    showNotification('warning', 'Настройте только для прошедших или текущего дня', '❗ Внимание')
+    return
+  }
+  
+  selectedMood.value = selectedMood.value === moodId ? null : moodId
+  saveMoodData()
+}
+
+const selectSleep = (sleepId) => {
+  if (isFutureDate(selectedDate.value)) {
+    showNotification('warning', 'Настройте только для прошедших или текущего дня', '❗ Внимание')
+    return
+  }
+  
+  selectedSleep.value = selectedSleep.value === sleepId ? null : sleepId
+  saveSleepData()
+}
+
 const saveMoodData = () => {
   const dateKey = selectedDate.value.toDateString()
   if (selectedMood.value) {
@@ -748,11 +694,9 @@ const saveMoodData = () => {
   } else {
     delete moodData.value[dateKey]
   }
-  localStorage.setItem('daytrack_mood_data', JSON.stringify(moodData.value))
   
-  calculateStreak()
-  calculateMaxStreak()
-  checkAchievements()
+  const moodKey = getUserKey('daytrack_mood_data')
+  localStorage.setItem(moodKey, JSON.stringify(moodData.value))
 }
 
 const saveSleepData = () => {
@@ -762,25 +706,18 @@ const saveSleepData = () => {
   } else {
     delete sleepData.value[dateKey]
   }
-  localStorage.setItem('daytrack_sleep_data', JSON.stringify(sleepData.value))
   
-  calculateStreak()
-  calculateMaxStreak()
-  checkAchievements()
-}
-
-const selectMood = (moodId) => {
-  selectedMood.value = selectedMood.value === moodId ? null : moodId
-  saveMoodData()
-}
-
-const selectSleep = (sleepId) => {
-  selectedSleep.value = selectedSleep.value === sleepId ? null : sleepId
-  saveSleepData()
+  const sleepKey = getUserKey('daytrack_sleep_data')
+  localStorage.setItem(sleepKey, JSON.stringify(sleepData.value))
 }
 
 const selectDate = (day) => {
   selectedDate.value = day.date
+  loadSelectedDateData()
+}
+
+const handleDayDoubleClick = (day) => {
+  openEventModal(day)
 }
 
 const prevMonth = () => {
@@ -793,7 +730,6 @@ const nextMonth = () => {
 
 const goToNotes = () => {
   localStorage.setItem('daytrack_selected_date', selectedDate.value.toISOString())
-  localStorage.setItem('daytrack_notes_update', Date.now().toString())
   router.push('/notes')
 }
 
@@ -801,18 +737,7 @@ const goToGallery = () => {
   router.push('/gallery')
 }
 
-const showTooltip = (event, text) => {
-  tooltipText.value = text
-  tooltipVisible.value = true
-  const rect = event.target.getBoundingClientRect()
-  tooltipX.value = rect.left + rect.width / 2
-  tooltipY.value = rect.bottom + 15
-}
-
-const hideTooltip = () => {
-  tooltipVisible.value = false
-}
-
+// Методы для событий календаря
 const hasMoodData = (date) => {
   return moodData.value[date.toDateString()] !== undefined
 }
@@ -822,7 +747,8 @@ const hasSleepData = (date) => {
 }
 
 const hasNotesData = (date) => {
-  return notesData.value[date.toDateString()] !== undefined
+  const note = notesData.value[date.toDateString()]
+  return note && note.text && note.text.trim() !== ''
 }
 
 const hasEventData = (date) => {
@@ -836,11 +762,29 @@ const isSameDay = (date1, date2) => {
          date1.getFullYear() === date2.getFullYear()
 }
 
+const isFutureDate = (date) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const checkDate = new Date(date)
+  checkDate.setHours(0, 0, 0, 0)
+  return checkDate > today
+}
+
 // Методы для событий
 const openEventModal = (day) => {
   eventModalDate.value = day.date
-  eventModalText.value = eventData.value[day.date.toDateString()]?.text || ''
+  const dateKey = day.date.toDateString()
+  const event = eventData.value[dateKey]
+  eventModalText.value = event?.text || ''
   eventModalVisible.value = true
+  
+  nextTick(() => {
+    const textarea = document.querySelector('.event-modal-textarea')
+    if (textarea) {
+      textarea.focus()
+      textarea.setSelectionRange(eventModalText.value.length, eventModalText.value.length)
+    }
+  })
 }
 
 const closeEventModal = () => {
@@ -850,24 +794,19 @@ const closeEventModal = () => {
 }
 
 const saveEvent = () => {
-  if (!eventModalDate.value) return
+  if (!eventModalDate.value || !eventModalText.value.trim()) return
   
   const dateKey = eventModalDate.value.toDateString()
   
-  if (eventModalText.value.trim()) {
-    eventData.value[dateKey] = {
-      text: eventModalText.value.trim(),
-      savedAt: new Date().toISOString()
-    }
-  } else {
-    delete eventData.value[dateKey]
+  eventData.value[dateKey] = {
+    text: eventModalText.value.trim(),
+    savedAt: new Date().toISOString(),
+    isFutureEvent: isFutureDate(eventModalDate.value),
+    notified: false
   }
   
-  localStorage.setItem('daytrack_event_data', JSON.stringify(eventData.value))
-  
-  calculateStreak()
-  calculateMaxStreak()
-  checkAchievements()
+  const eventKey = getUserKey('daytrack_event_data')
+  localStorage.setItem(eventKey, JSON.stringify(eventData.value))
   
   closeEventModal()
 }
@@ -877,10 +816,9 @@ const deleteEvent = () => {
   
   const dateKey = eventModalDate.value.toDateString()
   delete eventData.value[dateKey]
-  localStorage.setItem('daytrack_event_data', JSON.stringify(eventData.value))
   
-  calculateStreak()
-  calculateMaxStreak()
+  const eventKey = getUserKey('daytrack_event_data')
+  localStorage.setItem(eventKey, JSON.stringify(eventData.value))
   
   closeEventModal()
 }
@@ -889,73 +827,258 @@ const formatEventDate = (date) => {
   return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-const handleImageError = (event) => {
-  event.target.src = GalleryDefault
+const handleTextareaInput = (event) => {
+  event.target.style.height = 'auto'
+  event.target.style.height = Math.min(event.target.scrollHeight, 200) + 'px'
 }
 
-// Обновление галереи при возвращении с страницы галереи
-const updateGalleryData = async () => {
-  const images = await loadGalleryImagesFromDB()
-  galleryData.value = images
+// Методы для достижений
+const calculateStreak = () => {
+  const notesDates = Object.keys(notesData.value)
   
-  if (images.length > 0) {
-    const validImages = images.filter(img => 
-      img && img.url && typeof img.url === 'string' && img.url.startsWith('blob:')
-    )
-    if (validImages.length > 0) {
-      randomGalleryIndex.value = generateRandomIndex(validImages.length)
+  if (notesDates.length === 0) {
+    currentStreak.value = 0
+    return
+  }
+
+  const validEntries = notesDates.filter(dateKey => {
+    const note = notesData.value[dateKey]
+    return note && note.text && note.text.trim() !== ''
+  })
+
+  if (validEntries.length === 0) {
+    currentStreak.value = 0
+    return
+  }
+
+  // Сортируем по дате (от новых к старым)
+  const sortedDates = validEntries.sort((a, b) => new Date(b) - new Date(a))
+
+  let streak = 1
+  let prevDate = new Date(sortedDates[0])
+  prevDate.setHours(0, 0, 0, 0)
+
+  for (let i = 1; i < sortedDates.length; i++) {
+    const currentDate = new Date(sortedDates[i])
+    currentDate.setHours(0, 0, 0, 0)
+
+    const diffTime = prevDate - currentDate
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    if (diffDays === 1) {
+      streak++
+      prevDate = currentDate
+    } else if (diffDays > 1) {
+      break
+    }
+  }
+
+  currentStreak.value = streak
+}
+
+const calculateMaxStreak = () => {
+  const notesDates = Object.keys(notesData.value)
+  
+  if (notesDates.length === 0) {
+    maxStreak.value = 0
+    return
+  }
+
+  const validEntries = notesDates.filter(dateKey => {
+    const note = notesData.value[dateKey]
+    return note && note.text && note.text.trim() !== ''
+  })
+
+  if (validEntries.length === 0) {
+    maxStreak.value = 0
+    return
+  }
+
+  // Сортируем по дате (от старых к новым)
+  const sortedDates = validEntries.sort((a, b) => new Date(a) - new Date(b))
+
+  let maxStreakCount = 1
+  let currentStreakCount = 1
+  let prevDate = new Date(sortedDates[0])
+  prevDate.setHours(0, 0, 0, 0)
+
+  for (let i = 1; i < sortedDates.length; i++) {
+    const currentDate = new Date(sortedDates[i])
+    currentDate.setHours(0, 0, 0, 0)
+
+    const diffTime = currentDate - prevDate
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+    if (diffDays === 1) {
+      currentStreakCount++
+      maxStreakCount = Math.max(maxStreakCount, currentStreakCount)
+    } else if (diffDays > 1) {
+      currentStreakCount = 1
+    }
+
+    prevDate = currentDate
+  }
+
+  maxStreak.value = maxStreakCount
+}
+
+const updateAchievementsProgress = () => {
+  const validEntries = Object.keys(notesData.value).filter(dateKey => {
+    const note = notesData.value[dateKey]
+    return note && note.text && note.text.trim() !== ''
+  })
+  
+  const totalValidEntries = validEntries.length
+  
+  achievements.value.forEach(achievement => {
+    if (achievement.unlocked) {
+      achievement.progress.current = achievement.progress.total
+    } else {
+      if (achievement.type === 'notes_entry') {
+        achievement.progress.current = Math.min(totalValidEntries, achievement.progress.total)
+      } else if (achievement.type === 'notes_streak') {
+        achievement.progress.current = Math.min(currentStreak.value, achievement.progress.total)
+      }
+    }
+  })
+}
+
+const checkAchievements = () => {
+  const unlockedAchievements = achievementsData.value.unlocked || []
+  let newAchievements = []
+  
+  const validEntries = Object.keys(notesData.value).filter(dateKey => {
+    const note = notesData.value[dateKey]
+    return note && note.text && note.text.trim() !== ''
+  })
+  
+  const totalValidEntries = validEntries.length
+  
+  achievements.value.forEach(achievement => {
+    if (unlockedAchievements.includes(achievement.id)) {
+      achievement.unlocked = true
+      return
+    }
+    
+    let shouldUnlock = false
+    
+    if (achievement.type === 'notes_entry') {
+      shouldUnlock = totalValidEntries >= achievement.condition
+    } else if (achievement.type === 'notes_streak') {
+      shouldUnlock = currentStreak.value >= achievement.condition
+    }
+    
+    if (shouldUnlock && !achievement.unlocked) {
+      achievement.unlocked = true
+      unlockedAchievements.push(achievement.id)
+      newAchievements.push(achievement)
+    }
+  })
+  
+  if (newAchievements.length > 0) {
+    newAchievements.forEach((achievement, index) => {
+      setTimeout(() => {
+        showAchievementNotification(achievement)
+      }, index * 1500)
+    })
+  }
+  
+  achievementsData.value.unlocked = unlockedAchievements
+  
+  const achievementsKey = getUserKey('daytrack_achievements_data')
+  localStorage.setItem(achievementsKey, JSON.stringify(achievementsData.value))
+  
+  updateAchievementsProgress()
+}
+
+const showAchievementNotification = (achievement) => {
+  notify({
+    title: '🏆 Новое достижение!',
+    text: `Вы получили: "${achievement.name}"`,
+    type: 'success',
+    duration: 8000,
+    speed: 1000
+  })
+}
+
+// Проверка событий на сегодня
+const checkEventNotifications = () => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayKey = today.toDateString()
+  
+  const todayEvent = eventData.value[todayKey]
+  if (todayEvent && todayEvent.text && !todayEvent.notified) {
+    showNotification('info', todayEvent.text, '📅 Событие на сегодня')
+    
+    eventData.value[todayKey].notified = true
+    
+    const eventKey = getUserKey('daytrack_event_data')
+    localStorage.setItem(eventKey, JSON.stringify(eventData.value))
+  }
+  
+  Object.keys(eventData.value).forEach(dateKey => {
+    const event = eventData.value[dateKey]
+    const eventDate = new Date(dateKey)
+    
+    if (event && event.isFutureEvent && !isFutureDate(eventDate)) {
+      showNotification('info', event.text, '📅 Событие наступило!')
+      eventData.value[dateKey].isFutureEvent = false
+      eventData.value[dateKey].notified = true
+      
+      const eventKey = getUserKey('daytrack_event_data')
+      localStorage.setItem(eventKey, JSON.stringify(eventData.value))
+    }
+  })
+}
+
+const showNotification = (type, text, title) => {
+  notify({
+    title: title,
+    text: text,
+    type: type,
+    duration: 5000,
+    speed: 1000
+  })
+}
+
+const handleImageError = (event) => {
+  event.target.src = GalleryDefault
+  galleryImageKey.value = Date.now()
+}
+
+// Обработка обновлений записей
+const checkForNotesUpdates = () => {
+  const lastUpdate = localStorage.getItem('daytrack_notes_update')
+  if (lastUpdate && lastUpdate !== achievementsData.value.lastNotesUpdate) {
+    const notesKey = getUserKey('daytrack_notes_data')
+    const storedNotesData = localStorage.getItem(notesKey)
+    
+    if (storedNotesData) {
+      try {
+        notesData.value = JSON.parse(storedNotesData)
+        
+        calculateStreak()
+        calculateMaxStreak()
+        updateAchievementsProgress()
+        checkAchievements()
+        
+        achievementsData.value.lastNotesUpdate = lastUpdate
+        
+        const achievementsKey = getUserKey('daytrack_achievements_data')
+        localStorage.setItem(achievementsKey, JSON.stringify(achievementsData.value))
+      } catch (error) {
+        console.error('❌ Ошибка обновления данных записей:', error)
+      }
     }
   }
 }
 
-// Обработчики событий для обновления данных
-const handleDateSelected = () => {
-  const storedDate = localStorage.getItem('daytrack_selected_date')
-  if (storedDate) {
-    selectedDate.value = new Date(storedDate)
-    loadSelectedDateData()
-  }
-}
-
-const handleForceUpdate = () => {
-  loadStoredData()
-  loadSelectedDateData()
-}
-
-// Обработчик для событий из компонента записей
-const handleNoteSaved = () => {
-  const storedNotesData = localStorage.getItem('daytrack_notes_data')
-  if (storedNotesData) {
-    notesData.value = JSON.parse(storedNotesData)
-  }
-  
-  calculateStreak()
-  calculateMaxStreak()
-  checkAchievements()
-}
-
-// Очистка
-const cleanupEventListeners = () => {
-  window.removeEventListener('daytrack_date_selected', handleDateSelected)
-  window.removeEventListener('daytrack_force_update', handleForceUpdate)
-  window.removeEventListener('daytrack_note_saved', handleNoteSaved)
-  window.removeEventListener('focus', updateGalleryData)
-  window.removeEventListener('storage', handleStorageUpdate)
-}
-
-const cleanupBlobUrls = () => {
-  if (galleryData.value && Array.isArray(galleryData.value)) {
-    galleryData.value.forEach(item => {
-      if (item.url && item.url.startsWith('blob:')) {
-        URL.revokeObjectURL(item.url)
-      }
-    })
-  }
-}
-
-const handleStorageUpdate = async (event) => {
-  if (event.key === 'daytrack_gallery_data') {
-    await updateGalleryData()
+// Функция для обновления изображения галереи
+const refreshGalleryImage = () => {
+  if (galleryImagesData.value.length > 0) {
+    randomGalleryImageIndex.value = Math.floor(Math.random() * galleryImagesData.value.length)
+    galleryImageKey.value = Date.now()
   }
 }
 
@@ -964,693 +1087,62 @@ onMounted(() => {
   loadStoredData()
   loadSelectedDateData()
   
-  window.addEventListener('focus', updateGalleryData)
-  window.addEventListener('daytrack_date_selected', handleDateSelected)
-  window.addEventListener('daytrack_force_update', handleForceUpdate)
-  window.addEventListener('daytrack_note_saved', handleNoteSaved)
-  window.addEventListener('storage', handleStorageUpdate)
+  // Слушаем изменения в localStorage
+  window.addEventListener('storage', (event) => {
+    if (event.key && (
+      event.key.includes('daytrack_gallery_data') ||
+      event.key === getUserKey('daytrack_gallery_data')
+    )) {
+      loadGalleryData()
+      refreshGalleryImage()
+    }
+    
+    if (event.key && (
+      event.key.includes('daytrack_notes_data') ||
+      event.key === getUserKey('daytrack_notes_data') ||
+      event.key === 'daytrack_notes_update'
+    )) {
+      checkForNotesUpdates()
+      loadSelectedDateData()
+    }
+  })
+  
+  // Запускаем периодическую проверку обновлений
+  eventCheckInterval.value = setInterval(() => {
+    checkForNotesUpdates()
+    checkEventNotifications()
+  }, 5000)
+  
+  // Обновляем изображение галереи при монтировании
+  nextTick(() => {
+    refreshGalleryImage()
+  })
 })
 
 onUnmounted(() => {
-  cleanupEventListeners()
-  cleanupBlobUrls()
+  if (eventCheckInterval.value) {
+    clearInterval(eventCheckInterval.value)
+  }
 })
 
 // Наблюдатели
 watch(selectedDate, () => {
   loadSelectedDateData()
 })
+
+watch(galleryImagesData, (newVal) => {
+  if (newVal.length > 0) {
+    refreshGalleryImage()
+  }
+})
+
+watch(() => notesData.value, () => {
+  calculateStreak()
+  calculateMaxStreak()
+  checkAchievements()
+}, { deep: true })
 </script>
 
 <style scoped>
-.home-container {
-  width: 100vw;
-  height: 100vh;
-  position: relative;
-  background: #BEAEDB;
-  overflow: hidden;
-  min-width: 1200px;
-  min-height: 800px;
-}
-
-.background-image {
-  width: 100%;
-  height: 40vh;
-  position: absolute;
-  top: 0;
-  left: 0;
-  background-image: url('@/assets/lavanderall.png');
-  background-size: cover;
-  background-position: center;
-  z-index: 1;
-}
-
-.main-content {
-  position: absolute;
-  top: 80px;
-  left: 15px;
-  right: 15px;
-  bottom: 100px;
-  display: grid;
-  grid-template-columns: 1fr 250px 1fr;
-  gap: 15px;
-  z-index: 5;
-}
-
-/* Общие стили для секций */
-.section-background {
-  width: 100%;
-  height: 100%;
-  background: rgba(237, 221, 236, 0.66);
-  border-radius: 18px;
-  border: 1px #BEAEDB solid;
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-
-.section-content {
-  position: relative;
-  z-index: 3;
-  padding: 10px 15px;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.section-title {
-  color: #3F2A52;
-  font-size: 20px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-  text-align: center;
-  margin-top: -8px;
-  margin-bottom: 0;
-}
-
-/* Левая колонка */
-.left-column {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.mood-section,
-.sleep-section,
-.calendar-section {
-  position: relative;
-  border-radius: 18px;
-  overflow: visible;
-}
-
-.mood-section,
-.sleep-section {
-  height: 100px;
-}
-
-.calendar-section {
-  height: 400px;
-}
-
-/* Центральная колонка */
-.center-column {
-  display: flex;
-  flex-direction: column;
-}
-
-.notes-section {
-  position: relative;
-  height: 100%;
-  border-radius: 18px;
-  overflow: hidden;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.notes-section:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 15px rgba(151, 112, 169, 0.2);
-}
-
-/* Правая колонка */
-.right-column {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  height: 100%;
-}
-
-.gallery-section,
-.achievements-section {
-  position: relative;
-  border-radius: 18px;
-  overflow: hidden;
-}
-
-.gallery-section {
-  height: 300px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.gallery-section:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 15px rgba(151, 112, 169, 0.2);
-}
-
-.achievements-section {
-  height: calc(100% - 312px);
-  margin-top: auto;
-}
-
-.achievements-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  margin: 10px 0;
-}
-
-.stats-info {
-  margin-bottom: 15px;
-  text-align: center;
-}
-
-.streak-count,
-.max-streak {
-  color: #6D5D7A;
-  font-size: 14px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-  margin-bottom: 5px;
-}
-
-.achievements-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
-  flex: 1;
-}
-
-.achievement-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 5px;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.achievement-item:hover {
-  background: rgba(190, 174, 219, 0.3);
-}
-
-.achievement-item.unlocked {
-  background: rgba(185, 152, 200, 0.2);
-}
-
-.achievement-img {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  margin-bottom: 3px;
-}
-
-.achievement-name {
-  color: #6D5D7A;
-  font-size: 10px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-  text-align: center;
-  margin-bottom: 2px;
-}
-
-.achievement-progress {
-  color: #9770A9;
-  font-size: 8px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-}
-
-/* Стили для картинок */
-.mood-image {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 90px;
-  height: 90px;
-  object-fit: contain;
-  z-index: 2;
-  opacity: 0.8;
-}
-
-.dream-image {
-  position: absolute;
-  left: 1px;
-  top: 0;
-  width: 120px;
-  height: 100%;
-  object-fit: cover;
-  z-index: 1;
-  opacity: 0.7;
-  border-radius: 0 18px 18px 0;
-}
-
-/* Стили для эмодзи */
-.emojis-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 30px;
-  flex: 1;
-  margin: 0 10px;
-  z-index: 4;
-  position: relative;
-  margin-top: 2px;
-}
-
-.emoji-item {
-  width: 60px;
-  height: 60px;
-  cursor: pointer;
-  padding: 5px;
-  border-radius: 10px;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  background: transparent;
-  overflow: visible;
-  margin: 5px;
-}
-
-.emoji-item:hover {
-  transform: scale(1.5);
-  background: rgba(190, 174, 219, 0.4);
-  z-index: 1000;
-  border-color: white;
-  box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
-}
-
-.emoji-item.selected {
-  border-color: white;
-  background: rgba(255, 255, 255, 0.3);
-  box-shadow: 0 0 15px rgba(255, 255, 255, 0.7);
-  transform: scale(1.2);
-}
-
-.emoji-img {
-  width: 60px;
-  height: 60px;
-  object-fit: contain;
-  overflow: visible;
-}
-
-/* Подсказка */
-.tooltip {
-  position: fixed;
-  background: rgba(63, 42, 82, 0.95);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-family: 'KyivType Sans';
-  z-index: 1001;
-  white-space: nowrap;
-  pointer-events: none;
-  transform: translateX(-50%);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* Календарь */
-.calendar-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.calendar-nav {
-  background: #B998C8;
-  border: none;
-  border-radius: 50%;
-  width: 22px;
-  height: 22px;
-  color: white;
-  cursor: pointer;
-  font-size: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.calendar-title {
-  color: #3F2A52;
-  font-size: 20px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-  text-align: center;
-  text-transform: lowercase;
-}
-
-.week-days {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 5px;
-  margin-bottom: 10px;
-}
-
-.week-day {
-  color: #3F2A52;
-  font-size: 18px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-  text-align: center;
-}
-
-.calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  grid-template-rows: repeat(6, 1fr);
-  gap: 5px;
-  height: calc(100% - 60px);
-  align-items: center;
-  justify-items: center;
-}
-
-.calendar-day {
-  color: #3A2D34;
-  font-size: 14px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-  text-align: center;
-  padding: 5px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  position: relative;
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  min-height: 30px;
-  margin: 0;
-  box-sizing: border-box;
-}
-
-.calendar-day:hover {
-  background-color: rgba(190, 174, 219, 0.3);
-}
-
-.calendar-day.other-month {
-  color: #C7A7D6;
-}
-
-.calendar-day.today {
-  background: #3F2A52;
-  color: white;
-}
-
-.calendar-day.selected {
-  background: #925faa;
-  color: white;
-}
-
-/* Индикаторы данных в календаре */
-.day-indicators {
-  position: absolute;
-  bottom: 2px;
-  right: 2px;
-  display: flex;
-  gap: 2px;
-}
-
-.mood-indicator,
-.sleep-indicator,
-.notes-indicator,
-.event-indicator {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-}
-
-.mood-indicator {
-  background: #FF6B6B;
-}
-
-.sleep-indicator {
-  background: #4ECDC4;
-}
-
-.notes-indicator {
-  background: #0e9a28;
-}
-
-.event-indicator {
-  background: #593692;
-}
-
-/* Записи */
-.notes-content {
-  flex: 1;
-  margin: 10px 0;
-}
-
-.notes-text-with-lines {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-.text-line-container {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 8px;
-  flex: 1;
-}
-
-.text-line {
-  color: #6D5D7A;
-  font-size: 16px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 3px;
-}
-
-.line-under-text {
-  height: 2px;
-  background: #C7A7D6;
-  border-radius: 1px;
-  opacity: 0.6;
-  width: 100%;
-}
-
-/* Галерея */
-.gallery-image-container {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 4px 0;
-  overflow: hidden;
-  border-radius: 8px;
-}
-
-.gallery-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 8px;
-  transition: transform 0.3s ease;
-}
-
-.gallery-section:hover .gallery-image {
-  transform: scale(1.05);
-  border-radius: 8px;
-}
-
-/* Уведомление о достижении */
-.achievement-notification {
-  position: fixed;
-  top: 100px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(237, 221, 236, 0.95);
-  border: 2px solid #BEAEDB;
-  border-radius: 18px;
-  padding: 20px;
-  z-index: 1000;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-  animation: slideDown 0.5s ease-out;
-}
-
-.achievement-notification-content {
-  text-align: center;
-}
-
-.achievement-notification-title {
-  color: #3F2A52;
-  font-size: 18px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-  margin-bottom: 8px;
-}
-
-.achievement-notification-text {
-  color: #6D5D7A;
-  font-size: 14px;
-  font-family: 'KyivType Sans';
-  line-height: 1.4;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
-/* Модальное окно событий */
-.event-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.event-modal {
-  background: rgba(237, 221, 236, 0.95);
-  border-radius: 18px;
-  padding: 20px;
-  width: 400px;
-  max-width: 90vw;
-  border: 2px solid #BEAEDB;
-}
-
-.event-modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-}
-
-.event-modal-title {
-  color: #3F2A52;
-  font-size: 20px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-}
-
-.event-modal-close {
-  background: none;
-  border: none;
-  font-size: 24px;
-  color: #9770A9;
-  cursor: pointer;
-}
-
-.event-modal-date {
-  color: #6D5D7A;
-  font-size: 16px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-  margin-bottom: 15px;
-  text-align: center;
-}
-
-.event-modal-textarea {
-  width: 100%;
-  height: 120px;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1px solid #C7A7D6;
-  border-radius: 8px;
-  padding: 12px;
-  color: #6D5D7A;
-  font-size: 14px;
-  font-family: 'KyivType Sans';
-  resize: none;
-  outline: none;
-}
-
-.event-modal-chars {
-  color: #9770A9;
-  font-size: 12px;
-  font-family: 'KyivType Sans';
-  text-align: right;
-  margin-top: 5px;
-}
-
-.event-modal-actions {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 20px;
-  gap: 10px;
-}
-
-.event-delete-btn {
-  background: #e74c3c;
-  border: none;
-  border-radius: 12px;
-  color: white;
-  font-size: 14px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-  padding: 10px 20px;
-  cursor: pointer;
-  flex: 1;
-}
-
-.event-save-btn {
-  background: #B998C8;
-  border: none;
-  border-radius: 12px;
-  color: white;
-  font-size: 14px;
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-  padding: 10px 20px;
-  cursor: pointer;
-  flex: 2;
-}
-
-/* Адаптивность */
-@media (min-width: 1400px) {
-  .main-content {
-    left: 20px;
-    right: 20px;
-  }
-}
-
-@media (min-width: 1600px) {
-  .main-content {
-    left: 25px;
-    right: 25px;
-  }
-}
-
-@media (min-width: 1920px) {
-  .main-content {
-    left: 30px;
-    right: 30px;
-  }
-}
+@import '@/components/Home.css';
 </style>

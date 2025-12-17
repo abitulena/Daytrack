@@ -7,6 +7,31 @@
       class="background-image"
     >
     
+    <!-- Компонент уведомлений -->
+    <notifications position="top right" width="400" :max="3" :duration="8000" />
+    
+    <!-- Модальное окно подтверждения выхода -->
+    <div v-if="showLogoutModal" class="logout-modal-overlay" @click="closeLogoutModal">
+      <div class="logout-modal" @click.stop>
+        <div class="logout-modal-header">
+          <div class="logout-modal-title">⚠️ Подтверждение выхода</div>
+          <button class="logout-modal-close" @click="closeLogoutModal">×</button>
+        </div>
+        <div class="logout-modal-content">
+          <p>Вы уверены, что хотите выйти из аккаунта?</p>
+          <p class="logout-warning">Все данные будут сохранены на этом устройстве.</p>
+        </div>
+        <div class="logout-modal-actions">
+          <button class="logout-modal-cancel" @click="closeLogoutModal">
+            Нет, остаться
+          </button>
+          <button class="logout-modal-confirm" @click="confirmLogout">
+            Да, выйти
+          </button>
+        </div>
+      </div>
+    </div>
+    
     <!-- Welcome Text -->
     <div class="welcome-text">
       <span class="welcome-part">Добро пожаловать в </span>
@@ -84,7 +109,7 @@
           <button class="home-btn" @click="goToHome">
             на главную
           </button>
-          <button class="logout-btn" @click="logout">
+          <button class="logout-btn" @click="showLogoutModal = true">
             выйти из аккаунта
           </button>
         </div>
@@ -105,6 +130,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { notify } from "@kyvg/vue3-notification"
 
 const router = useRouter()
 const fileInput = ref(null)
@@ -116,6 +142,7 @@ const userGender = ref('')
 const userBirthdate = ref('')
 const avatarPreview = ref('')
 const selectedFile = ref(null)
+const showLogoutModal = ref(false)
 
 // Загрузка данных пользователя
 const loadUserData = () => {
@@ -220,13 +247,13 @@ const handleAvatarSelect = async (event) => {
   
   // Проверяем тип файла
   if (!file.type.startsWith('image/')) {
-    alert('Пожалуйста, выберите изображение')
+    showNotification('error', 'Пожалуйста, выберите изображение', '❌ Ошибка')
     return
   }
   
   // Увеличиваем максимальный размер до 10MB
   if (file.size > 10 * 1024 * 1024) {
-    alert('Файл слишком большой. Максимальный размер: 10MB')
+    showNotification('error', 'Файл слишком большой. Максимальный размер: 10MB', '❌ Ошибка')
     return
   }
   
@@ -235,6 +262,7 @@ const handleAvatarSelect = async (event) => {
     let processedFile = file
     if (file.size > 2 * 1024 * 1024) {
       console.log('🔄 Сжатие изображения...')
+      showNotification('info', 'Сжимаем изображение...', '🔄 Загрузка')
       processedFile = await compressImage(file)
     }
     
@@ -243,24 +271,25 @@ const handleAvatarSelect = async (event) => {
     reader.onload = (e) => {
       avatarPreview.value = e.target.result
       selectedFile.value = processedFile
+      showNotification('success', 'Аватар загружен!', '✅ Успешно')
     }
     
     reader.onerror = () => {
-      alert('Ошибка загрузки файла')
+      showNotification('error', 'Ошибка загрузки файла', '❌ Ошибка')
     }
     
     reader.readAsDataURL(processedFile)
     
   } catch (error) {
     console.error('Ошибка обработки изображения:', error)
-    alert('Ошибка обработки изображения. Попробуйте другой файл.')
+    showNotification('error', 'Ошибка обработки изображения. Попробуйте другой файл.', '❌ Ошибка')
   }
 }
 
 // Сохранение профиля
 const saveProfile = () => {
   if (!userName.value.trim()) {
-    alert('Пожалуйста, введите логин')
+    showNotification('warn', 'Пожалуйста, введите логин', '⚠️ Внимание')
     return
   }
   
@@ -275,33 +304,53 @@ const saveProfile = () => {
   // Триггерим событие для обновления шапки
   window.dispatchEvent(new Event('storage'))
   
-  alert('Профиль сохранен!')
-  router.back()
+  showNotification('success', 'Профиль успешно сохранен!', '✅ Успешно')
+  
+  // НЕ переходим на главную, остаемся в профиле
 }
 
-// Выход из аккаунта
-const logout = () => {
-  if (confirm('Вы уверены, что хотите выйти из аккаунта?')) {
-    // Очищаем все данные пользователя
-    localStorage.removeItem('daytrack_username')
-    localStorage.removeItem('daytrack_avatar')
-    localStorage.removeItem('daytrack_user')
-    localStorage.removeItem('daytrack_mood_data')
-    localStorage.removeItem('daytrack_sleep_data')
-    localStorage.removeItem('daytrack_notes_data')
-    localStorage.removeItem('daytrack_event_data')
-    localStorage.removeItem('daytrack_achievements_data')
-    localStorage.removeItem('daytrack_custom_hashtags')
-    localStorage.removeItem('daytrack_logged_in')
-    
-    // Перенаправляем на страницу входа (корневой путь)
+// Закрытие модального окна выхода
+const closeLogoutModal = () => {
+  showLogoutModal.value = false
+}
+
+// Подтверждение выхода
+const confirmLogout = () => {
+  // Очищаем все данные пользователя
+  localStorage.removeItem('daytrack_username')
+  localStorage.removeItem('daytrack_avatar')
+  localStorage.removeItem('daytrack_user')
+  localStorage.removeItem('daytrack_mood_data')
+  localStorage.removeItem('daytrack_sleep_data')
+  localStorage.removeItem('daytrack_notes_data')
+  localStorage.removeItem('daytrack_event_data')
+  localStorage.removeItem('daytrack_achievements_data')
+  localStorage.removeItem('daytrack_custom_hashtags')
+  localStorage.removeItem('daytrack_logged_in')
+  
+  closeLogoutModal()
+  showNotification('success', 'Вы успешно вышли из аккаунта', '👋 До свидания')
+  
+  // Через 1 секунду перенаправляем на страницу входа
+  setTimeout(() => {
     router.push('/')
-  }
+  }, 1000)
 }
 
 // Переход на главную
 const goToHome = () => {
   router.push('/home')
+}
+
+// Показ обычного уведомления
+const showNotification = (type, text, title) => {
+  notify({
+    title: title,
+    text: text,
+    type: type,
+    duration: 5000,
+    speed: 1000
+  })
 }
 
 // Хуки жизненного цикла
@@ -311,318 +360,5 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.profile-container {
-  width: 100vw;
-  height: 100vh;
-  position: fixed;
-  top: 0;
-  left: 0;
-  background: #BEAEDB;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
-}
-
-.background-image {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  z-index: 0;
-  opacity: 0.5;
-  filter: brightness(1.1) saturate(1.2);
-}
-
-.welcome-text {
-  text-align: center;
-  width: 100%;
-  margin-bottom: 20px;
-  position: relative;
-  z-index: 1;
-  margin-top: -50px;
-}
-
-.welcome-part {
-  color: #3A2D34;
-  font-size: 2.2rem;
-  font-family: 'KyivType Sans', Arial, sans-serif;
-  font-weight: 840;
-  text-shadow: 0px 3px 3px rgba(151, 112, 169, 0.5);
-}
-
-.app-name {
-  color: white;
-  font-size: 2.2rem;
-  font-family: 'KyivType Sans', Arial, sans-serif;
-  font-weight: 840;
-  text-shadow: 0px 3px 3px rgba(151, 112, 169, 0.5);
-}
-
-.profile-content {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  margin-top: 10px;
-}
-
-.profile-window {
-  width: 420px;
-  height: auto;
-  min-height: 480px; /* Уменьшена высота */
-  background: rgba(237, 221, 236, 0.9);
-  border-radius: 30px;
-  border: 2px solid rgba(237, 221, 236, 0.95);
-  padding: 25px 30px 20px 30px; /* Уменьшены отступы */
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 15px 30px rgba(151, 112, 169, 0.2);
-  position: relative;
-  z-index: 1;
-}
-
-.profile-title {
-  color: #3A2D34;
-  font-size: 2rem;
-  font-family: 'KyivType Sans', Arial, sans-serif;
-  font-weight: 840;
-  margin-bottom: 20px; /* Уменьшен отступ */
-  text-align: center;
-}
-
-/* Стили для аватара */
-.avatar-section {
-  margin-bottom: 20px; /* Уменьшен отступ */
-  display: flex;
-  justify-content: center;
-}
-
-.avatar-preview {
-  width: 100px; /* Уменьшен размер аватара */
-  height: 100px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.4);
-  border: 3px solid #B998C8;
-  cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  transition: all 0.3s ease;
-}
-
-.avatar-preview:hover {
-  transform: scale(1.05);
-  border-color: #9770A9;
-}
-
-.avatar-preview:hover .avatar-overlay {
-  opacity: 1;
-}
-
-.avatar-image-large {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-}
-
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #9770A9;
-  font-size: 30px; /* Уменьшен размер плюса */
-}
-
-.plus-icon {
-  font-size: 35px;
-  font-weight: 300;
-}
-
-.avatar-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(63, 42, 82, 0.8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  border-radius: 50%;
-}
-
-.change-text {
-  color: white;
-  font-size: 11px; /* Уменьшен размер текста */
-  font-family: 'KyivType Sans';
-  font-weight: 840;
-  text-align: center;
-}
-
-/* Стили формы */
-.user-info {
-  width: 100%;
-  margin-bottom: 20px; /* Уменьшен отступ */
-}
-
-.form-group {
-  position: relative;
-  margin-bottom: 15px; /* Уменьшен отступ */
-  width: 100%;
-}
-
-.label {
-  color: #9770A9;
-  font-size: 0.9rem; /* Уменьшен размер шрифта */
-  font-family: 'KyivType Sans', Arial, sans-serif;
-  font-weight: 840;
-  margin-bottom: 6px; /* Уменьшен отступ */
-  display: block;
-}
-
-.input-field {
-  width: 100%;
-  height: 35px; /* Уменьшена высота */
-  background: transparent !important;
-  border: none;
-  border-bottom: 2px solid rgba(237, 221, 236, 0.9);
-  color: #9770A9;
-  font-size: 0.9rem; /* Уменьшен размер шрифта */
-  font-family: 'KyivType Sans', Arial, sans-serif;
-  padding: 6px 0; /* Уменьшены отступы */
-  outline: none;
-  transition: border-color 0.3s ease;
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-  caret-color: #9770A9;
-}
-
-.input-field:-webkit-autofill,
-.input-field:-webkit-autofill:hover,
-.input-field:-webkit-autofill:focus,
-.input-field:-webkit-autofill:active {
-  -webkit-text-fill-color: #9770A9 !important;
-  -webkit-box-shadow: 0 0 0px 1000px transparent inset !important;
-  transition: background-color 5000s ease-in-out 0s;
-  background: transparent !important;
-  border-bottom: 2px solid rgba(237, 221, 236, 0.9);
-  font-family: 'KyivType Sans', Arial, sans-serif;
-  font-size: 0.9rem;
-}
-
-.input-field:focus {
-  border-bottom-color: #B998C8;
-  background: transparent !important;
-  outline: none;
-  box-shadow: none;
-}
-
-.input-field::placeholder {
-  color: rgba(151, 112, 169, 0.6);
-  font-size: 0.85rem; /* Уменьшен размер шрифта */
-  font-family: 'KyivType Sans', Arial, sans-serif;
-}
-
-.input-field:read-only {
-  color: rgba(151, 112, 169, 0.7);
-  cursor: not-allowed;
-}
-
-.input-field:focus-visible {
-  outline: none;
-}
-
-.input-field:active {
-  background: transparent !important;
-}
-
-/* Кнопки действий */
-.action-buttons {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  margin-top: 10px;
-  gap: 10px; /* Отступ между кнопками */
-}
-
-.save-btn {
-  width: 100%;
-  height: 45px; /* Уменьшена высота */
-  background: #CFB9F2;
-  border-radius: 25px; /* Уменьшен радиус */
-  border: 2px solid rgba(237, 221, 236, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: #3A2D34;
-  font-size: 1rem; /* Уменьшен размер шрифта */
-  font-family: 'KyivType Sans', Arial, sans-serif;
-  font-weight: 840;
-}
-
-.save-btn:hover {
-  background: #B998C8;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 15px rgba(151, 112, 169, 0.2);
-}
-
-.home-btn {
-  width: 100%;
-  height: 45px;
-  background: #B998C8;
-  border-radius: 25px;
-  border: 2px solid rgba(237, 221, 236, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: white;
-  font-size: 1rem;
-  font-family: 'KyivType Sans', Arial, sans-serif;
-  font-weight: 840;
-}
-
-.home-btn:hover {
-  background: #A589B3;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 15px rgba(151, 112, 169, 0.2);
-}
-
-.logout-btn {
-  width: 100%;
-  height: 45px;
-  background: #e74c3c;
-  border-radius: 25px;
-  border: 2px solid rgba(237, 221, 236, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  color: white;
-  font-size: 1rem;
-  font-family: 'KyivType Sans', Arial, sans-serif;
-  font-weight: 840;
-}
-
-.logout-btn:hover {
-  background: #c0392b;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 15px rgba(220, 53, 69, 0.2);
-}
+@import '@/components/Profile.css';
 </style>

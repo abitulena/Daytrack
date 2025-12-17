@@ -1,0 +1,811 @@
+.home-container {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  background: #BEAEDB;
+  overflow: hidden;
+  min-width: 1200px;
+  min-height: 800px;
+}
+
+.background-image {
+  width: 100%;
+  height: 40vh;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-image: url('@/assets/lavanderall.png');
+  background-size: cover;
+  background-position: center;
+  z-index: 1;
+}
+
+.main-content {
+  position: absolute;
+  top: 80px;
+  left: 15px;
+  right: 15px;
+  bottom: 100px;
+  display: grid;
+  grid-template-columns: 1fr 250px 1fr;
+  gap: 15px;
+  z-index: 5;
+}
+
+/* Общие стили для секций */
+.section-background {
+  width: 100%;
+  height: 100%;
+  background: rgba(237, 221, 236, 0.66);
+  border-radius: 18px;
+  border: 1px #BEAEDB solid;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.section-content {
+  position: relative;
+  z-index: 3;
+  padding: 10px 15px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.section-title {
+  color: #3F2A52;
+  font-size: 20px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  text-align: center;
+  margin-top: -8px;
+  margin-bottom: 0;
+}
+
+/* Левая колонка */
+.left-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mood-section,
+.sleep-section,
+.calendar-section {
+  position: relative;
+  border-radius: 18px;
+  overflow: visible;
+}
+
+.mood-section,
+.sleep-section {
+  height: 100px;
+}
+
+.calendar-section {
+  height: 400px;
+}
+
+/* Центральная колонка */
+.center-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.notes-section {
+  position: relative;
+  height: 99%;
+  border-radius: 18px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 0px;
+}
+
+.notes-section:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(151, 112, 169, 0.2);
+}
+
+/* Правая колонка */
+.right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.gallery-section,
+.achievements-section {
+  position: relative;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.gallery-section {
+  height: 300px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.gallery-section:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 15px rgba(151, 112, 169, 0.2);
+}
+
+.achievements-section {
+  height: calc(100% - 312px);
+  margin-top: -8px;
+}
+
+.achievements-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  margin: 10px 0;
+}
+
+.stats-info {
+  margin-bottom: 15px;
+  text-align: center;
+}
+
+.streak-count,
+.max-streak {
+  color: #6D5D7A;
+  font-size: 14px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  margin-bottom: 5px;
+}
+
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  flex: 1;
+  align-items: start;
+}
+
+.achievement-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 5px;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+  min-height: 90px;
+}
+
+.achievement-item:hover {
+  background: rgba(190, 174, 219, 0.3);
+}
+
+.achievement-item.unlocked {
+  background: rgba(185, 152, 200, 0.2);
+}
+
+.achievement-img {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+  margin-bottom: 5px;
+}
+
+.achievement-name {
+  color: #6D5D7A;
+  font-size: 11px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  text-align: center;
+  line-height: 1.2;
+  margin-top: 2px;
+  width: 100%;
+  white-space: nowrap;
+  overflow: visible;
+  text-overflow: clip;
+  padding: 0 2px;
+}
+
+.achievement-progress {
+  color: #9770A9;
+  font-size: 9px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  margin-top: 2px;
+}
+
+/* ИЗМЕНЕНА ПОДСКАЗКА ДЛЯ ДОСТИЖЕНИЙ - КРУПНЕЕ И НИЖЕ */
+.achievement-tooltip {
+  position: absolute;
+  top: -85px; /* Опускаем ниже, чтобы была ближе к картинкам */
+  left: 50%;
+  transform: translateX(-50%) scale(0.95);
+  background: rgba(63, 42, 82, 0.95);
+  color: white;
+  padding: 12px 15px;
+  border-radius: 10px;
+  font-size: 13px; /* Увеличиваем шрифт */
+  font-family: 'KyivType Sans';
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 1001;
+  min-width: 160px; /* Увеличиваем минимальную ширину */
+  text-align: center;
+  backdrop-filter: blur(5px);
+  line-height: 1.4;
+}
+
+.achievement-tooltip.visible {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+.tooltip-title {
+  font-weight: 840;
+  margin-bottom: 6px; /* Увеличиваем отступ */
+  color: #e1baef;
+  font-size: 14px; /* Увеличиваем шрифт названия */
+}
+
+.tooltip-description {
+  font-size: 12px; /* Увеличиваем шрифт описания */
+  opacity: 0.9;
+  line-height: 1.3;
+}
+
+/* Стили для картинок */
+.mood-image {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  z-index: 2;
+  opacity: 0.8;
+}
+
+.dream-image {
+  position: absolute;
+  left: 1px;
+  top: 0;
+  width: 120px;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  opacity: 0.7;
+  border-radius: 0 18px 18px 0;
+}
+
+/* Стили для эмодзи настроения и сна */
+.emojis-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+  flex: 1;
+  margin: 0 10px;
+  z-index: 4;
+  position: relative;
+  margin-top: 2px;
+}
+
+.emoji-item {
+  width: 60px;
+  height: 60px;
+  cursor: pointer;
+  padding: 5px;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  background: transparent;
+  overflow: visible;
+  margin: 5px;
+}
+
+.emoji-item:hover {
+  transform: scale(1.5);
+  background: rgba(190, 174, 219, 0.4);
+  z-index: 1000;
+  border-color: white;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+}
+
+.emoji-item.selected {
+  border-color: white;
+  background: rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.7);
+  transform: scale(1.2);
+}
+
+.emoji-img {
+  width: 60px;
+  height: 60px;
+  object-fit: contain;
+  overflow: visible;
+}
+
+/* Подсказка для смайликов настроения и сна */
+.emoji-tooltip {
+  position: absolute;
+  bottom: -15px;
+  left: 50%;
+  transform: translateX(-50%) scale(0.95);
+  background: rgba(63, 42, 82, 0.95);
+  color: white;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-family: 'KyivType Sans';
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 1001;
+}
+
+.emoji-item:hover .emoji-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+/* Календарь */
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.calendar-nav {
+  background: #B998C8;
+  border: none;
+  border-radius: 50%;
+  width: 22px;
+  height: 22px;
+  color: white;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.calendar-nav:hover {
+  background: #a586b5;
+  transform: scale(1.1);
+}
+
+.calendar-title {
+  color: #3F2A52;
+  font-size: 20px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  text-align: center;
+  text-transform: lowercase;
+}
+
+.week-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.week-day {
+  color: #3F2A52;
+  font-size: 18px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  text-align: center;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 5px;
+  height: calc(100% - 60px);
+  align-items: center;
+  justify-items: center;
+}
+
+.calendar-day {
+  color: #3A2D34;
+  font-size: 14px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  text-align: center;
+  padding: 5px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  min-height: 30px;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+.calendar-day:hover {
+  background-color: rgba(190, 174, 219, 0.3);
+  transform: scale(1.1);
+}
+
+.calendar-day.other-month {
+  color: #C7A7D6;
+  opacity: 0.6;
+}
+
+.calendar-day.today {
+  background: #3F2A52;
+  color: white;
+  font-weight: 900;
+}
+
+.calendar-day.selected {
+  background: #925faa;
+  color: white;
+  font-weight: 900;
+}
+
+/* Индикаторы данных в календаре - теперь под днями */
+.day-indicators {
+  position: absolute;
+  bottom: -8px;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 2px;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.mood-indicator,
+.sleep-indicator,
+.notes-indicator,
+.event-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.mood-indicator {
+  background: #FF6B6B;
+}
+
+.sleep-indicator {
+  background: #4ECDC4;
+}
+
+.notes-indicator {
+  background: #0e9a28;
+}
+
+.event-indicator {
+  background: #593692;
+}
+
+/* Записи */
+.notes-content {
+  flex: 1;
+  margin: 10px 0;
+}
+
+.notes-text-with-lines {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.text-line-container {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+  flex: 1;
+}
+
+.text-line {
+  color: #6D5D7A;
+  font-size: 16px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+
+.line-under-text {
+  height: 2px;
+  background: #C7A7D6;
+  border-radius: 1px;
+  opacity: 0.6;
+  width: 100%;
+}
+
+/* Галерея */
+.gallery-image-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px 0;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.gallery-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+  transition: transform 0.3s ease;
+}
+
+.gallery-section:hover .gallery-image {
+  transform: scale(1.05);
+  border-radius: 8px;
+}
+
+/* Модальное окно событий - улучшенное */
+.event-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.event-modal {
+  background: rgba(237, 221, 236, 0.98);
+  border-radius: 20px;
+  padding: 25px;
+  width: 450px;
+  max-width: 90vw;
+  border: 2px solid #BEAEDB;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+  animation: slideUp 0.4s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.event-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(190, 174, 219, 0.5);
+}
+
+.event-modal-title {
+  color: #3F2A52;
+  font-size: 22px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  letter-spacing: 0.5px;
+}
+
+.event-modal-close {
+  background: rgba(190, 174, 219, 0.3);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  font-size: 18px;
+  color: #3F2A52;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.event-modal-close:hover {
+  background: rgba(190, 174, 219, 0.5);
+  transform: scale(1.1);
+}
+
+.event-modal-date {
+  color: #6D5D7A;
+  font-size: 16px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  margin-bottom: 15px;
+  text-align: center;
+  padding: 8px;
+  background: rgba(190, 174, 219, 0.15);
+  border-radius: 10px;
+}
+
+.event-modal-textarea {
+  width: 100%;
+  min-height: 120px;
+  max-height: 200px;
+  background: rgba(255, 255, 255, 0.8);
+  border: 2px solid #C7A7D6;
+  border-radius: 12px;
+  padding: 15px;
+  color: #3F2A52;
+  font-size: 14px;
+  font-family: 'KyivType Sans';
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.3s ease;
+  line-height: 1.5;
+}
+
+.event-modal-textarea:focus {
+  border-color: #925faa;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.event-modal-chars {
+  color: #9770A9;
+  font-size: 12px;
+  font-family: 'KyivType Sans';
+  text-align: right;
+  margin-top: 5px;
+  padding-right: 5px;
+}
+
+.event-modal-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 20px;
+  gap: 10px;
+}
+
+.event-delete-btn {
+  background: linear-gradient(to bottom, #e74c3c, #c0392b);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 14px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  padding: 12px 20px;
+  cursor: pointer;
+  flex: 1;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 8px rgba(231, 76, 60, 0.3);
+}
+
+.event-delete-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 12px rgba(231, 76, 60, 0.4);
+  background: linear-gradient(to bottom, #ff5a4a, #e74c3c);
+}
+
+.event-delete-btn:active {
+  transform: translateY(0);
+}
+
+.event-save-btn {
+  background: linear-gradient(to bottom, #B998C8, #9770A9);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  font-size: 14px;
+  font-family: 'KyivType Sans';
+  font-weight: 840;
+  padding: 12px 20px;
+  cursor: pointer;
+  flex: 2;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 8px rgba(151, 112, 169, 0.3);
+}
+
+.event-save-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 12px rgba(151, 112, 169, 0.4);
+  background: linear-gradient(to bottom, #c8a8d8, #a880b9);
+}
+
+.event-save-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.event-save-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.calendar-day.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.calendar-day.disabled:hover {
+  background: none;
+  transform: none;
+}
+
+/* Адаптивность */
+@media (min-width: 1400px) {
+  .main-content {
+    left: 20px;
+    right: 20px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .main-content {
+    left: 25px;
+    right: 25px;
+  }
+}
+
+@media (min-width: 1920px) {
+  .main-content {
+    left: 30px;
+    right: 30px;
+  }
+}
+
+/* Дополнительные стили для отладки */
+.empty-notes-message {
+  color: #6D5D7A;
+  font-size: 16px;
+  font-family: 'KyivType Sans';
+  text-align: center;
+  margin-top: 50px;
+  opacity: 0.7;
+}
+
+.empty-gallery-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #6D5D7A;
+  font-size: 16px;
+  font-family: 'KyivType Sans';
+  text-align: center;
+  opacity: 0.7;
+}
