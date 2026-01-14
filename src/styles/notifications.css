@@ -1,0 +1,73 @@
+/* Стили для vue-notification */
+.vue-notification-group {
+  margin-top: 80px !important;
+}
+
+.vue-notification-wrapper {
+  overflow: visible !important;
+}
+
+.vue-notification {
+  font-family: 'KyivType Sans', sans-serif !important;
+  border-radius: 12px !important;
+  margin: 10px !important;
+  border-left: 6px solid !important;
+  backdrop-filter: blur(10px) !important;
+  background: rgba(237, 221, 236, 0.95) !important;
+  border: 2px solid #BEAEDB !important;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3) !important;
+  transition: all 0.3s ease !important;
+}
+
+.vue-notification:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+.vue-notification.success {
+  border-left-color: #27ae60 !important;
+}
+
+.vue-notification.info {
+  border-left-color: #3498db !important;
+}
+
+.vue-notification.warn {
+  border-left-color: #f39c12 !important;
+}
+
+.vue-notification.error {
+  border-left-color: #e74c3c !important;
+}
+
+.notification-title {
+  color: #3F2A52 !important;
+  font-weight: 840 !important;
+  font-size: 16px !important;
+  margin-bottom: 5px !important;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notification-content {
+  color: #6D5D7A !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+
+/* Анимации для уведомлений */
+.vue-notification-enter-active,
+.vue-notification-leave-active {
+  transition: all 0.5s ease !important;
+}
+
+.vue-notification-enter-from {
+  opacity: 0 !important;
+  transform: translateX(100px) !important;
+}
+
+.vue-notification-leave-to {
+  opacity: 0 !important;
+  transform: translateX(100px) !important;
+}
