@@ -1,55 +1,61 @@
+import 'dotenv/config';
 import express from 'express';
-import { testConnection, User, DiaryEntry, Emotion, SleepQuality } from './models/index.js';
 
-const port = 5000;
+import cookieParser from 'cookie-parser'; 
+import cors from 'cors';
+import path from 'path';
+
+import { testConnection } from './models/index.js';
+
+// import { testConnection, User, DiaryEntry, Emotion, SleepQuality } from './models/index.js';
+// import jwt from 'jsonwebtoken';
+// import bcrypt from 'bcryptjs';
+
+import authRoutes from './routes/auth.js';
+import dataRoutes from './routes/data.js';
+import diaryRoutes from './routes/diary.js';
+
+import photoRoutes from './routes/photo.js';
+import searchRoutes from './routes/search.js';
+import hashtagRoutes from './routes/hashtags.js';
+import achievementRoutes from './routes/achievement.js';
+import notificationRoutes from './routes/notificationRoutes.js';
+
+
+const port = process.env.PORT || 5000;
 const app = express()
 
-app.use(express.json())
+// Middleware
+app.use(cors({
+  // origin: '*'
+  origin: ['http://10.31.178.160:5173', 'http://localhost:5173'], 
+  credentials: true
+}));
+app.use(cookieParser()); 
+app.use(express.json());
 
+app.use('/uploads', express.static(path.join(process.cwd(), 'public/uploads')));
+
+// Подключение к БД
 testConnection();
 
-//регистрация
-app.post('/sign-up', async (req,res) => {
-    try{
-        const { login, birth_date, email, password, gender } = req.body;
+// Маршруты
+app.use('/auth', authRoutes);
+app.use('/api/data', dataRoutes);
+app.use('/api/diary', diaryRoutes);
 
-        if (!login || !email || !password) {
-            return res.status(400).json({ error: 'заполните все поля' });
-        }
+app.use('/api/hashtags', hashtagRoutes);
+app.use('/api/photos', photoRoutes);
+app.use('/api/search', searchRoutes);
 
-        const user = await User.create({ login, birth_date, email, password_hash: password, gender });
-        res.status(201).json({ success: true, 
-            user: { 
-            id: user.id, 
-            login: user.login, 
-            email: user.email }  
-        });
-    }  catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-    
+app.use('/api/achievements', achievementRoutes);
+app.use('/api/notifications', notificationRoutes);
+
+// Health check
+app.get('/', (req, res) => {
+  res.json({ status: 'OK', message: 'API работает' });
 });
 
-//вход
-app.post('/log-in', async (req,res) => {
-    try{
-        const { email, password } = req.body;
-
-        const user = await User.findOne({where: {email}});
-
-        if (!user) {
-            return res.status(401).json({ error: 'неверный email или пароль' });
-        }
-
-        if (user.password_hash !== password) {
-            return res.status(401).json({ error: 'неверный email или пароль' });
-        }
-
-        res.json({ success: true, user: { id: user.id, login: user.login, email: user.email } });
-    } catch (error) {
-    res.status(500).json({ error: error.message });
-  }  
-});
-
-
-app.listen(port, () => {console.log('web on: http://localhost:%s', port)})
+app.listen(port, '0.0.0.0', () => {
+  console.log('web on: http://localhost:%s', port)
+})

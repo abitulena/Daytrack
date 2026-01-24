@@ -1,5 +1,5 @@
-// models/index.js
-import { sequelize, DataTypes, testConnection } from './init.js'; 
+// models/index.js 
+import { sequelize, DataTypes, testConnection } from './init.js';
 
 // users
 const User = sequelize.define('User', {
@@ -8,7 +8,7 @@ const User = sequelize.define('User', {
   email: { type: DataTypes.STRING(255), unique: true, allowNull: false },
   password_hash: { type: DataTypes.STRING(255), allowNull: false },
   birth_date: { type: DataTypes.DATEONLY, allowNull: false },
-  gender: { type: DataTypes.ENUM('M', 'F'), allowNull: false }
+  gender: { type: DataTypes.ENUM('M', 'Ж'), allowNull: false }
 }, {
   tableName: 'users',
   timestamps: true,
@@ -16,12 +16,12 @@ const User = sequelize.define('User', {
   updatedAt: false
 });
 
-// emotions
+// Emotion 
 const Emotion = sequelize.define('Emotion', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   name: { type: DataTypes.STRING(50), unique: true, allowNull: false },
-  image_url: { type: DataTypes.STRING(500), allowNull: false },
-  display_order: { type: DataTypes.INTEGER, defaultValue: 0 }
+  display_order: { type: DataTypes.INTEGER, defaultValue: 0 },
+  image_url: { type: DataTypes.STRING(500) } // <-- ДОБАВЛЕНО
 }, {
   tableName: 'emotions',
   timestamps: false
@@ -31,8 +31,8 @@ const Emotion = sequelize.define('Emotion', {
 const SleepQuality = sequelize.define('SleepQuality', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   name: { type: DataTypes.STRING(50), unique: true, allowNull: false },
-  image_url: { type: DataTypes.STRING(500), allowNull: false },
-  display_order: { type: DataTypes.INTEGER, defaultValue: 0 }
+  display_order: { type: DataTypes.INTEGER, defaultValue: 0 },
+  image_url: { type: DataTypes.STRING(500) } // <-- ДОБАВЛЕНО
 }, {
   tableName: 'sleep_quality',
   timestamps: false
@@ -62,16 +62,50 @@ const DiaryEntry = sequelize.define('DiaryEntry', {
 // hashtags
 const Hashtag = sequelize.define('Hashtag', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
-  tag_name: { type: DataTypes.STRING(50), unique: true, allowNull: false }, 
-  is_custom: { type: DataTypes.BOOLEAN, defaultValue: false } 
+  tag_name: { type: DataTypes.STRING(100), unique: true, allowNull: false },
+  is_custom: { type: DataTypes.BOOLEAN, defaultValue: true }, // <-- В таблице есть это поле
+  created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
 }, {
   tableName: 'hashtags',
-  timestamps: true,
-  createdAt: 'created_at',
-  updatedAt: false
+  timestamps: false // createdAt уже описано как created_at
 });
 
-// gallery_photo
+
+const Achievement = sequelize.define('Achievement', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  name: { type: DataTypes.STRING(255), allowNull: false },
+  image_filename: { type: DataTypes.STRING(255) },
+  condition_type: { type: DataTypes.STRING(50), allowNull: false },
+  display_order: { type: DataTypes.INTEGER, allowNull: false }
+}, {
+  tableName: 'achievements',
+  timestamps: false
+});
+
+// Модель UserAchievement
+const UserAchievement = sequelize.define('UserAchievement', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  user_id: { type: DataTypes.INTEGER, allowNull: false },
+  achievement_id: { type: DataTypes.INTEGER, allowNull: false },
+  unlocked_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, {
+  tableName: 'user_achievements',
+  timestamps: false
+});
+
+// Модель Event
+const Event = sequelize.define('Event', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  user_id: { type: DataTypes.INTEGER, allowNull: false },
+  event_date: { type: DataTypes.DATEONLY, allowNull: false },
+  description: { type: DataTypes.TEXT },
+  created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, {
+  tableName: 'events',
+  timestamps: false
+});
+
+// gallery_photos
 const GalleryPhoto = sequelize.define('GalleryPhoto', {
   id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
   entry_id: { type: DataTypes.INTEGER, allowNull: false }, 
@@ -97,6 +131,19 @@ const EntryHashtag = sequelize.define('EntryHashtag', {
   updatedAt: false
 });
 
+
+const RefreshToken = sequelize.define('RefreshToken', {
+  id: { type: DataTypes.INTEGER, primaryKey: true, autoIncrement: true },
+  user_id: { type: DataTypes.INTEGER, allowNull: false },
+  token: { type: DataTypes.TEXT, allowNull: false, unique: true },
+  expires_at: { type: DataTypes.DATE, allowNull: false },
+  created_at: { type: DataTypes.DATE, defaultValue: DataTypes.NOW }
+}, {
+  tableName: 'refresh_tokens',
+  timestamps: false
+});
+
+
 // СВЯЗИ МЕЖДУ МОДЕЛЯМИ 
 User.hasMany(DiaryEntry, { foreignKey: 'user_id', onDelete: 'CASCADE' });
 DiaryEntry.belongsTo(User, { foreignKey: 'user_id' });
@@ -119,8 +166,27 @@ Hashtag.belongsToMany(DiaryEntry, {
 DiaryEntry.hasMany(GalleryPhoto, { foreignKey: 'entry_id', onDelete: 'CASCADE' });
 GalleryPhoto.belongsTo(DiaryEntry, { foreignKey: 'entry_id' });
 
+User.hasMany(RefreshToken, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+RefreshToken.belongsTo(User, { foreignKey: 'user_id' });
+
+User.belongsToMany(Achievement, {
+  through: UserAchievement,
+  foreignKey: 'user_id',
+  otherKey: 'achievement_id'
+});
+Achievement.belongsToMany(User, {
+  through: UserAchievement,
+  foreignKey: 'achievement_id',
+  otherKey: 'user_id'
+});
+
+// Связь для Event
+User.hasMany(Event, { foreignKey: 'user_id', onDelete: 'CASCADE' });
+Event.belongsTo(User, { foreignKey: 'user_id' });
+
+
 // ЭКСПОРТ ВСЕХ МОДЕЛЕЙ
-export { 
+export {
   sequelize,
   User,
   DiaryEntry,
@@ -129,5 +195,15 @@ export {
   Hashtag,
   GalleryPhoto,
   EntryHashtag,
+  RefreshToken,  
+  Achievement,
+  UserAchievement,    
+  Event,   
   testConnection
 };
+
+
+
+
+
+
