@@ -31,27 +31,15 @@
           <div v-if="showHashtagList" class="hashtag-list">
             <div class="hashtag-title">выберите хештег:</div>
             <div class="hashtag-items">
-              <!-- Дефолтные хештеги (без удаления) -->
+              <!-- Хештеги с сервера -->
               <div 
-                v-for="hashtag in defaultHashtags" 
-                :key="hashtag"
-                class="hashtag-item default-hashtag"
-                @click="addHashtag(hashtag)"
+                v-for="hashtag in serverHashtags" 
+                :key="'hashtag-' + hashtag.id"
+                class="hashtag-item"
+                :class="{ 'custom-hashtag': hashtag.is_custom }"
+                @click="addHashtag(hashtag.tag_name)"
               >
-                #{{ hashtag }}
-              </div>
-              
-              <!-- Кастомные хештеги (с возможностью удаления) -->
-              <div 
-                v-for="hashtag in customHashtags" 
-                :key="'custom-' + hashtag"
-                class="hashtag-item custom-hashtag"
-                @click="addHashtag(hashtag)"
-                @dblclick="removeCustomHashtag(hashtag)"
-                :title="'Двойной клик для удаления #' + hashtag"
-              >
-                #{{ hashtag }}
-                <span class="delete-hint">×</span>
+                #{{ hashtag.tag_name }}
               </div>
               
               <!-- Поле для добавления нового хештега -->
@@ -117,13 +105,12 @@ const router = useRouter()
 const currentNotesText = ref('')
 const currentQuestions = ref([])
 const selectedDate = ref(new Date())
-const notesData = ref({})
 const scrollPosition = ref(0)
 const showHashtagList = ref(false)
 const newCustomHashtag = ref('')
-
-// Данные из localStorage
-const customHashtags = ref([])
+const serverHashtags = ref([])
+const existingEntry = ref(null)
+const isLoading = ref(false)
 
 // Вопросы для вдохновения
 const allQuestions = [
@@ -149,20 +136,6 @@ const allQuestions = [
   'Что делает этот день особенным?'
 ]
 
-// Дефолтные хештеги
-const defaultHashtags = [
-  'любовь',
-  'работа',
-  'отдых',
-  'здоровье',
-  'друзья',
-  'семья',
-  'учеба',
-  'хобби',
-  'путешествие',
-  'мечты'
-]
-
 // Вычисляемые свойства
 const formattedSelectedDate = computed(() => {
   const options = { day: 'numeric', month: 'long', year: 'numeric' }
@@ -175,50 +148,225 @@ const linesStyle = computed(() => {
   }
 })
 
-// Получение ключа для данных пользователя
-const getUserKey = (baseKey) => {
-  const userId = localStorage.getItem('daytrack_user_id')
-  return userId ? `${baseKey}_${userId}` : baseKey
-}
-
-// Основные методы
-const loadSelectedDate = () => {
-  const storedDate = localStorage.getItem('daytrack_selected_date')
-  if (storedDate) {
-    selectedDate.value = new Date(storedDate)
-  }
-}
-
-const loadStoredNotes = () => {
-  const notesKey = getUserKey('daytrack_notes_data')
-  const storedNotesData = localStorage.getItem(notesKey)
-  
-  if (storedNotesData) {
-    try {
-      notesData.value = JSON.parse(storedNotesData)
-    } catch (error) {
-      console.error('Ошибка загрузки записей:', error)
-      notesData.value = {}
+// Загрузка хештегов с сервера
+const loadHashtags = async () => {
+  try {
+    const token = localStorage.getItem('access_token')
+    
+    if (!token) {
+      throw new Error('Требуется авторизация')
     }
-  } else {
-    notesData.value = {}
+    
+    // Согласно API: GET /api/hashtags - получить все хэштеги
+    const response = await fetch('http://localhost:5000/api/hashtags', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`Ошибка загрузки хештегов: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    if (data.success && data.hashtag) {
+      serverHashtags.value = data.hashtag
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка загрузки хештегов:', error)
   }
 }
 
-const loadCustomHashtags = () => {
-  const hashtagsKey = getUserKey('daytrack_custom_hashtags')
-  const stored = localStorage.getItem(hashtagsKey)
-  customHashtags.value = stored ? JSON.parse(stored) : []
+// Создание нового хештега на сервере
+const addCustomHashtag = async () => {
+  if (!newCustomHashtag.value.trim()) return
+  
+  try {
+    const token = localStorage.getItem('access_token')
+    
+    if (!token) {
+      throw new Error('Требуется авторизация')
+    }
+    
+    // Согласно API: POST /api/hashtags - создать хэштег
+    const response = await fetch('http://localhost:5000/api/hashtags', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        tag_name: newCustomHashtag.value.trim().toLowerCase()
+      })
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || 'Ошибка создания хештега')
+    }
+    
+    const data = await response.json()
+    if (data.success) {
+      // Добавляем новый хештег в список
+      serverHashtags.value.push({
+        id: data.id || Date.now(),
+        tag_name: newCustomHashtag.value.trim().toLowerCase(),
+        is_custom: true
+      })
+      
+      addHashtag(newCustomHashtag.value.trim())
+      newCustomHashtag.value = ''
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка создания хештега:', error)
+    alert(error.message || 'Не удалось создать хештег')
+  }
 }
 
-const saveCustomHashtags = () => {
-  const hashtagsKey = getUserKey('daytrack_custom_hashtags')
-  localStorage.setItem(hashtagsKey, JSON.stringify(customHashtags.value))
+// Загрузка существующей записи для выбранной даты
+const loadExistingEntry = async () => {
+  try {
+    const token = localStorage.getItem('access_token')
+    
+    if (!token) {
+      throw new Error('Требуется авторизация')
+    }
+    
+    // Форматируем дату для поиска
+    const dateStr = selectedDate.value.toISOString().split('T')[0]
+    
+    // Согласно API: GET /api/search/entries - поиск записей
+    // Ищем записи по дате (нужно будет адаптировать API для поиска по конкретной дате)
+    const response = await fetch(`http://localhost:5000/api/search/entries?date=${dateStr}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      if (data.success && data.entries && data.entries.length > 0) {
+        // Предполагаем, что API возвращает записи за конкретную дату
+        existingEntry.value = data.entries[0]
+        currentNotesText.value = existingEntry.value.content || existingEntry.value.text || ''
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка загрузки записи:', error)
+  }
 }
 
-const loadNotesForDate = (date) => {
-  const dateKey = date.toDateString()
-  currentNotesText.value = notesData.value[dateKey]?.text || ''
+// Сохранение записи на сервер
+const saveNotes = async () => {
+  if (!currentNotesText.value.trim()) {
+    alert('Запись не может быть пустой')
+    return
+  }
+  
+  isLoading.value = true
+  
+  try {
+    const token = localStorage.getItem('access_token')
+    
+    if (!token) {
+      throw new Error('Требуется авторизация')
+    }
+    
+    // Форматируем дату
+    const dateStr = selectedDate.value.toISOString().split('T')[0]
+    
+    // Согласно API: POST /api/diary/entries - создать запись
+    // PUT /api/diary/entries/:id - обновить запись
+    const method = existingEntry.value ? 'PUT' : 'POST'
+    const url = existingEntry.value 
+      ? `http://localhost:5000/api/diary/entries/${existingEntry.value.id}`
+      : 'http://localhost:5000/api/diary/entries'
+    
+    const response = await fetch(url, {
+      method: method,
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        content: currentNotesText.value.trim(),
+        entry_date: dateStr,
+        // Добавляем другие поля если они есть в записи
+        emotion_id: null, // можно добавить позже
+        sleep_quality_id: null, // можно добавить позже
+        hashtags: extractHashtags(currentNotesText.value.trim())
+      })
+    })
+    
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.message || `Ошибка сохранения записи: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    
+    // Если это новая запись, сохраняем ID для возможного обновления
+    if (method === 'POST' && data.id) {
+      existingEntry.value = { id: data.id }
+    }
+    
+    console.log('✅ Запись успешно сохранена на сервере')
+    alert('Запись сохранена!')
+    
+    // Автоматически закрываем хештеги если они открыты
+    showHashtagList.value = false
+    
+    // Обработка уведомлений о новой записи
+    if (method === 'POST') {
+      await handleNewEntryNotification(data.id)
+    }
+    
+  } catch (error) {
+    console.error('❌ Ошибка сохранения записи:', error)
+    alert(error.message || 'Не удалось сохранить запись')
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Извлечение хештегов из текста
+const extractHashtags = (text) => {
+  const hashtagRegex = /#(\w+)/g
+  const matches = text.match(hashtagRegex)
+  if (!matches) return []
+  
+  return matches.map(tag => tag.substring(1))
+}
+
+// Обработка уведомлений о новой записи
+const handleNewEntryNotification = async (entryId) => {
+  try {
+    const token = localStorage.getItem('access_token')
+    
+    if (!token) return
+    
+    // Согласно API: POST /api/notifications/new-entry - обработать уведомления о новой записи
+    await fetch('http://localhost:5000/api/notifications/new-entry', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        entry_id: entryId
+      })
+    })
+    
+  } catch (error) {
+    console.warn('⚠️ Ошибка обработки уведомлений:', error)
+  }
 }
 
 const refreshQuestions = () => {
@@ -234,39 +382,6 @@ const handleTextInput = () => {
     textarea.style.height = 'auto'
     textarea.style.height = Math.min(textarea.scrollHeight, 400) + 'px'
   }
-}
-
-const saveNotes = () => {
-  const dateKey = selectedDate.value.toDateString()
-  const notesKey = getUserKey('daytrack_notes_data')
-  
-  if (currentNotesText.value.trim()) {
-    // Есть текст - сохраняем запись
-    notesData.value[dateKey] = {
-      text: currentNotesText.value.trim(),
-      savedAt: new Date().toISOString()
-    }
-  } else {
-    // Пустой текст - удаляем запись если она существовала
-    delete notesData.value[dateKey]
-  }
-  
-  // Сохраняем в localStorage
-  localStorage.setItem(notesKey, JSON.stringify(notesData.value))
-  
-  // Отправляем событие storage для обновления данных
-  window.dispatchEvent(new StorageEvent('storage', {
-    key: notesKey,
-    newValue: JSON.stringify(notesData.value),
-    oldValue: localStorage.getItem(notesKey),
-    storageArea: localStorage,
-    url: window.location.href
-  }))
-  
-  // Автоматически закрываем хештеги если они открыты
-  showHashtagList.value = false
-  
-  console.log('✅ Запись сохранена для даты:', dateKey)
 }
 
 const addHashtag = (hashtag) => {
@@ -288,68 +403,6 @@ const addHashtag = (hashtag) => {
   }, 0)
 }
 
-const addCustomHashtag = () => {
-  if (newCustomHashtag.value.trim()) {
-    const cleanHashtag = newCustomHashtag.value.trim()
-      .replace(/#/g, '')
-      .replace(/\s+/g, '_')
-      .toLowerCase()
-    
-    if (cleanHashtag) {
-      if (!customHashtags.value.includes(cleanHashtag) && 
-          !defaultHashtags.includes(cleanHashtag)) {
-        
-        customHashtags.value.push(cleanHashtag)
-        saveCustomHashtags()
-        addHashtag(cleanHashtag)
-        newCustomHashtag.value = ''
-        console.log('✅ Хештег добавлен:', cleanHashtag)
-      } else {
-        console.log('⚠️ Хештег уже существует:', cleanHashtag)
-      }
-    }
-  }
-}
-
-const removeCustomHashtag = (hashtag) => {
-  if (confirm(`Удалить хештег #${hashtag}?`)) {
-    customHashtags.value = customHashtags.value.filter(h => h !== hashtag)
-    saveCustomHashtags()
-    removeHashtagFromAllNotes(hashtag)
-    console.log('✅ Хештег удален:', hashtag)
-  }
-}
-
-const removeHashtagFromAllNotes = (hashtag) => {
-  const hashtagPattern = new RegExp(`\\s?#${hashtag}\\b`, 'g')
-  const notesKey = getUserKey('daytrack_notes_data')
-  
-  Object.keys(notesData.value).forEach(dateKey => {
-    if (notesData.value[dateKey]?.text) {
-      notesData.value[dateKey].text = notesData.value[dateKey].text
-        .replace(hashtagPattern, '')
-        .trim()
-    }
-  })
-  
-  if (currentNotesText.value) {
-    currentNotesText.value = currentNotesText.value
-      .replace(hashtagPattern, '')
-      .trim()
-  }
-  
-  localStorage.setItem(notesKey, JSON.stringify(notesData.value))
-  
-  // Уведомляем об изменении
-  window.dispatchEvent(new StorageEvent('storage', {
-    key: notesKey,
-    newValue: JSON.stringify(notesData.value),
-    oldValue: localStorage.getItem(notesKey),
-    storageArea: localStorage,
-    url: window.location.href
-  }))
-}
-
 const goToHome = () => {
   router.push('/home')
 }
@@ -363,10 +416,8 @@ const handleScroll = () => {
 
 // Хуки жизненного цикла
 onMounted(() => {
-  loadSelectedDate()
-  loadStoredNotes()
-  loadCustomHashtags()
-  loadNotesForDate(selectedDate.value)
+  loadHashtags()
+  loadExistingEntry()
   refreshQuestions()
   
   const textarea = document.querySelector('.notes-textarea')
@@ -385,5 +436,49 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@import '@/components/Notes.css';
+@import '@/styles/Notes.css';
+
+/* Стили для кастомных хештегов */
+.custom-hashtag {
+  background-color: #e8f4f8 !important;
+  border-color: #5d9cec !important;
+  color: #2c3e50 !important;
+}
+
+.hashtag-item {
+  transition: all 0.2s ease;
+}
+
+.hashtag-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.custom-hashtag-input {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.hashtag-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.add-custom-btn {
+  padding: 8px 16px;
+  background-color: #9770A9;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.add-custom-btn:hover {
+  background-color: #855c96;
+}
 </style>

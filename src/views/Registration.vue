@@ -139,7 +139,6 @@
         
         <div v-if="formData.password" class="password-strength">
           <div class="strength-bar" :class="passwordStrength"></div>
-          <div class="strength-text">{{ passwordStrengthText }}</div>
         </div>
       </div>
       
@@ -185,7 +184,12 @@
       >
         <div class="create-account-text">
           {{ isFormValid ? 'создать аккаунт' : 'заполните все поля корректно' }}
+          <span v-if="isLoading" class="spinner"></span>
         </div>
+      </div>
+
+      <div v-if="serverError" class="server-error-message">
+        {{ serverError }}
       </div>
     </div>
   </div>
@@ -222,8 +226,10 @@ const currentDate = ref(new Date())
 const selectedDate = ref(null)
 const yearRangeStart = ref(1900)
 const yearRangeEnd = ref(2030)
+const isLoading = ref(false)
+const serverError = ref('')
 
-// Вычисляемые свойства
+// Вычисляемые свойства (остаются без изменений)
 const currentYear = computed(() => currentDate.value.getFullYear())
 
 const currentMonth = computed(() => {
@@ -323,17 +329,10 @@ const passwordStrength = computed(() => {
   return 'strong'
 })
 
-const passwordStrengthText = computed(() => {
-  switch (passwordStrength.value) {
-    case 'weak': return 'Слабый пароль'
-    case 'medium': return 'Средний пароль'
-    case 'strong': return 'Сильный пароль'
-    default: return ''
-  }
-})
-
-// Методы
+// Методы валидации (остаются без изменений)
 const validateForm = () => {
+  serverError.value = ''
+  
   if (!formData.value.login.trim()) {
     errors.value.login = 'Логин обязателен'
   } else if (formData.value.login.length < 3) {
@@ -462,53 +461,80 @@ const validateBirthdate = () => {
   validateForm()
 }
 
-const handleRegistration = () => {
+// Метод регистрации - ИСПРАВЛЕН по документации
+const handleRegistration = async () => {
   validateForm()
   validatePassword()
   validateEmail()
   validateBirthdate()
   
   if (!isFormValid.value) {
-    // Просто не даем продолжить, ошибки уже отображаются
     return
   }
   
-  // Проверяем, не существует ли уже пользователь с таким email
-  const existingUser = localStorage.getItem('daytrack_user')
-  if (existingUser) {
-    const user = JSON.parse(existingUser)
-    if (user.email === formData.value.email) {
-      errors.value.email = 'Пользователь с таким email уже существует!'
-      return
+  isLoading.value = true
+  serverError.value = ''
+  
+  try {
+    // Согласно API: POST /auth/sign-up - регистрация
+    // Форматируем дату рождения в ISO строку
+    const birthdateParts = formData.value.birthdate.split('.')
+    const birthdateISO = `${birthdateParts[2]}-${birthdateParts[1]}-${birthdateParts[0]}`
+
+    // В документации не указаны поля запроса, предполагаем стандартные
+    const response = await fetch('http://localhost:5000/auth/sign-up', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        login: formData.value.login,
+        email: formData.value.email,
+        password: formData.value.password,
+        birthdate: birthdateISO,
+        gender: formData.value.gender
+      })
+    })
+
+    const data = await response.json()
+    
+    if (!response.ok) {
+      // Согласно документации, возможен ответ с ошибкой
+      throw new Error(data.message || `Ошибка ${response.status}: ${response.statusText}`)
     }
+
+    // В документации не указана структура ответа при регистрации
+    // Предполагаем, что сервер возвращает токены
+    
+    // Проверяем наличие токена в ответе
+    if (data.access_token || data.token) {
+      const token = data.access_token || data.token
+      localStorage.setItem('access_token', token)
+      
+      // Сохраняем user_id, если он есть в ответе
+      if (data.user_id || data.id) {
+        localStorage.setItem('user_id', data.user_id || data.id)
+      }
+    } else {
+      console.warn('Токен не получен от сервера')
+    }
+
+    // Переходим на главную страницу
+    router.push('/home')
+    
+  } catch (error) {
+    console.error('Ошибка при регистрации:', error)
+    serverError.value = error.message || 'Произошла ошибка при регистрации'
+  } finally {
+    isLoading.value = false
   }
-  
-  // Генерируем уникальный ID для пользователя
-  const userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
-  
-  // Сохраняем данные пользователя
-  const userData = {
-    ...formData.value,
-    userId: userId,
-    registeredAt: new Date().toISOString()
-  }
-  
-  // Сохраняем пользователя в localStorage
-  localStorage.setItem('daytrack_user', JSON.stringify(userData))
-  localStorage.setItem('daytrack_user_id', userId)
-  localStorage.setItem('daytrack_logged_in', 'true')
-  localStorage.setItem('daytrack_username', formData.value.login)
-  
-  console.log('✅ Создан новый аккаунт с ID:', userId)
-  
-  // Перенаправляем на главную
-  goToHome()
 }
 
 const goToHome = () => {
   router.push('/home')
 }
 
+// Остальные методы UI остаются без изменений
 const toggleDatepicker = () => {
   showDatepicker.value = !showDatepicker.value
   showYearSelector.value = false
@@ -620,5 +646,5 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-@import '@/components/Registration.css';
+@import '@/styles/Registration.css';
 </style>

@@ -11,12 +11,26 @@
     <div class="gallery-content">
       <div class="gallery-scroll-container">
         <div class="gallery-grid">
+          <!-- Показываем статус загрузки -->
+          <div v-if="isLoading" class="loading-state">
+            <div class="loading-spinner-large"></div>
+            <div class="loading-text">Загрузка галереи...</div>
+          </div>
+          
+          <!-- Если галерея пуста -->
+          <div v-else-if="galleryCells.length === 0" class="empty-gallery">
+            <div class="empty-icon">📷</div>
+            <div class="empty-text">Галерея пуста</div>
+            <div class="empty-subtext">Загрузите фото к вашим записям</div>
+          </div>
+          
+          <!-- Отображение галереи -->
           <div 
             v-for="(cell, index) in galleryCells" 
             :key="cell.id"
             class="gallery-cell"
             :class="{ 'has-image': cell.imageUrl, 'loading': cell.loading }"
-            @click="cell.imageUrl ? openFullscreen(index) : openFilePicker(index)"
+            @click="cell.imageUrl ? openFullscreen(index) : null"
           >
             <div v-if="cell.loading" class="loading-spinner">
               <div class="spinner"></div>
@@ -38,12 +52,26 @@
                 <div class="plus-vertical"></div>
                 <div class="plus-horizontal"></div>
               </div>
+              <div class="empty-cell-text">
+                Записи с фото появятся здесь
+              </div>
+            </div>
+            
+            <!-- Информация о записи -->
+            <div v-if="cell.entryInfo && cell.imageUrl" class="entry-info">
+              <div class="entry-date">
+                {{ formatDate(cell.entryInfo.entry_date) }}
+              </div>
+              <div v-if="cell.entryInfo.preview" class="entry-preview">
+                {{ cell.entryInfo.preview }}
+              </div>
             </div>
             
             <button 
               v-if="cell.imageUrl && !cell.loading" 
               class="delete-button"
-              @click.stop="deleteImage(index)"
+              @click.stop="deleteImage(cell.id)"
+              :disabled="isDeleting"
             >
               ×
             </button>
@@ -52,36 +80,57 @@
       </div>
     </div>
 
+    <!-- Полноэкранный просмотр -->
     <div 
       v-if="fullscreenVisible" 
       class="fullscreen-overlay" 
       @click="closeFullscreen"
     >
       <div class="fullscreen-content" @click.stop>
-        <button class="fullscreen-close" @click="closeFullscreen">×</button>
-        <div class="gallery-image-container">
+        <div class="fullscreen-header">
+          <div class="fullscreen-title">Просмотр фото</div>
+          <button class="fullscreen-close" @click="closeFullscreen">
+            ×
+          </button>
+        </div>
+        
+        <div class="fullscreen-image-container">
           <img 
             :src="fullscreenImageUrl" 
             alt="Fullscreen" 
-            class="gallery-image"
+            class="fullscreen-image"
           />
         </div>
-        <button 
-          class="fullscreen-delete" 
-          @click="deleteFullscreenImage"
-        >
-          удалить фото
-        </button>
+        
+        <div v-if="currentFullscreenEntry" class="fullscreen-info">
+          <div class="fullscreen-date">
+            Дата записи: {{ formatDate(currentFullscreenEntry.entry_date) }}
+          </div>
+          <div v-if="currentFullscreenEntry.preview" class="fullscreen-preview">
+            {{ currentFullscreenEntry.preview }}
+          </div>
+        </div>
+        
+        <div class="fullscreen-actions">
+          <button 
+            class="fullscreen-delete" 
+            @click="deleteFullscreenImage"
+            :disabled="isDeleting"
+          >
+            удалить фото
+          </button>
+        </div>
       </div>
     </div>
 
-    <input
+    <!-- Модальное окно загрузки фото (не используется в этой версии) -->
+    <!-- <input
       ref="fileInput"
       type="file"
       accept="image/*"
       style="display: none"
       @change="handleFileSelect"
-    />
+    /> -->
   </div>
 </template>
 
@@ -93,64 +142,170 @@ import Header from '@/components/Header.vue'
 const router = useRouter()
 
 const galleryCells = ref([])
-const fileInput = ref(null)
-const currentFileIndex = ref(null)
+const isLoading = ref(true)
+const isDeleting = ref(false)
 const fullscreenVisible = ref(false)
-const fullscreenIndex = ref(null)
 const fullscreenImageUrl = ref('')
+const currentFullscreenEntry = ref(null)
+const currentPhotoId = ref(null)
 
-// IndexedDB конфигурация
-const DB_VERSION = 1
-const STORE_NAME = 'gallery_images'
-
-// Получение ID текущего пользователя
-const getCurrentUserId = () => {
-  return localStorage.getItem('daytrack_user_id') || 'default_user'
-}
-
-// Получение имени БД для текущего пользователя
-const getDBName = () => {
-  const userId = getCurrentUserId()
-  return `GalleryDB_${userId}`
-}
-
-// Инициализация IndexedDB
-const initDB = () => {
-  return new Promise((resolve, reject) => {
-    const dbName = getDBName()
-    const request = indexedDB.open(dbName, DB_VERSION)
+// Загрузка данных с сервера
+const loadGalleryData = async () => {
+  isLoading.value = true
+  galleryCells.value = []
+  
+  try {
+    const token = localStorage.getItem('access_token')
     
-    request.onerror = () => {
-      console.error('Ошибка открытия БД:', request.error)
-      reject(request.error)
+    if (!token) {
+      throw new Error('Требуется авторизация')
     }
     
-    request.onsuccess = () => {
-      console.log('БД инициализирована:', dbName)
-      resolve(request.result)
+    // Шаг 1: Получаем все записи с фото
+    await loadPhotosWithEntries(token)
+    
+  } catch (error) {
+    console.error('❌ Ошибка загрузки галереи:', error)
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Загрузка фото с информацией о записях
+const loadPhotosWithEntries = async (token) => {
+  try {
+    // Сначала получаем все записи пользователя
+    // Согласно API: GET /api/diary/entries - получить все записи пользователя
+    const entriesResponse = await fetch('http://localhost:5000/api/diary/entries', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
+    
+    if (!entriesResponse.ok) {
+      throw new Error(`Ошибка загрузки записей: ${entriesResponse.status}`)
     }
     
-    request.onupgradeneeded = (event) => {
-      const db = event.target.result
+    const entriesData = await entriesResponse.json()
+    
+    if (!entriesData.success || !entriesData.entries) {
+      return
+    }
+    
+    const entriesWithPhotos = []
+    
+    // Для каждой записи проверяем наличие фото
+    for (const entry of entriesData.entries) {
+      if (!entry.id) continue
       
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        const store = db.createObjectStore(STORE_NAME, { keyPath: 'id' })
-        store.createIndex('userId', 'userId', { unique: false })
-        store.createIndex('cellIndex', 'cellIndex', { unique: true })
-        console.log('Создано хранилище:', STORE_NAME)
+      try {
+        // Согласно API: GET /api/photos/entries/:entryId/photos - получить фото записи
+        const photosResponse = await fetch(`http://localhost:5000/api/photos/entries/${entry.id}/photos`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        
+        if (photosResponse.ok) {
+          const photosData = await photosResponse.json()
+          
+          if (photosData.success && photosData.photos && photosData.photos.length > 0) {
+            // Добавляем каждое фото в галерею
+            for (const photo of photosData.photos) {
+              entriesWithPhotos.push({
+                id: photo.id,
+                entryId: entry.id,
+                photoData: photo,
+                entryInfo: {
+                  id: entry.id,
+                  entry_date: entry.entry_date || entry.created_at,
+                  preview: entry.content ? getPreviewText(entry.content) : '',
+                  emotion: entry.emotion_id,
+                  sleep: entry.sleep_quality_id
+                }
+              })
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`⚠️ Ошибка загрузки фото для записи ${entry.id}:`, error)
       }
     }
-  })
+    
+    // Сортируем по дате (новые сначала)
+    entriesWithPhotos.sort((a, b) => {
+      const dateA = new Date(a.entryInfo.entry_date)
+      const dateB = new Date(b.entryInfo.entry_date)
+      return dateB - dateA
+    })
+    
+    // Создаем ячейки галереи
+    galleryCells.value = entriesWithPhotos.map((item, index) => {
+      let imageUrl = ''
+      
+      // Пытаемся получить URL фото
+      if (item.photoData.filename) {
+        // Согласно API: GET /uploads/:filename - получить загруженные файлы (фото)
+        imageUrl = `http://localhost:5000/uploads/${item.photoData.filename}`
+      } else if (item.photoData.image_url) {
+        imageUrl = item.photoData.image_url
+      } else if (item.photoData.base64_data) {
+        imageUrl = item.photoData.base64_data
+      }
+      
+      return {
+        id: item.id,
+        photoId: item.id,
+        entryId: item.entryId,
+        imageUrl: imageUrl,
+        loading: false,
+        entryInfo: item.entryInfo
+      }
+    })
+    
+    console.log(`✅ Загружено ${galleryCells.value.length} фото в галерею`)
+    
+  } catch (error) {
+    console.error('❌ Ошибка загрузки фото с записями:', error)
+    throw error
+  }
 }
 
-// Создание начальной структуры галереи
-const createInitialGallery = () => {
-  return Array(20).fill().map((_, index) => ({
-    id: `cell_${index}`,
-    cellIndex: index,
-    imageUrl: null,
-    loading: false
-  }))
+// Форматирование даты
+const formatDate = (dateString) => {
+  if (!dateString) return 'Дата не указана'
+  
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('ru-RU', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+  } catch {
+    return dateString
+  }
+}
+
+// Создание превью текста
+const getPreviewText = (text) => {
+  if (!text || text.trim() === '') return ''
+  
+  const cleanText = text.trim()
+  
+  // Берем первые 50 символов
+  let preview = cleanText.substring(0, 50)
+  
+  // Если текст длиннее, добавляем многоточие
+  if (cleanText.length > 50) {
+    preview += '...'
+  }
+  
+  return preview
 }
 
 // Навигация на главную
@@ -158,443 +313,285 @@ const goToHome = () => {
   router.push('/home')
 }
 
-// Сохранение изображения как base64 в IndexedDB
-const saveImageToDB = async (index, file) => {
-  try {
-    // Сначала сжимаем изображение если нужно
-    const processedFile = await compressImage(file)
-    
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      
-      reader.onload = async (event) => {
-        try {
-          const base64Data = event.target.result
-          const db = await initDB()
-          
-          const imageData = {
-            id: `img_${getCurrentUserId()}_${Date.now()}_${index}`,
-            cellIndex: index,
-            userId: getCurrentUserId(),
-            name: file.name,
-            type: file.type,
-            size: processedFile.size,
-            data: base64Data,
-            timestamp: Date.now(),
-            uploadedAt: new Date().toISOString()
-          }
-          
-          const transaction = db.transaction([STORE_NAME], 'readwrite')
-          const store = transaction.objectStore(STORE_NAME)
-          
-          // Удаляем старую запись для этой ячейки если есть
-          const indexObj = store.index('cellIndex')
-          const getRequest = indexObj.getKey(index)
-          
-          getRequest.onsuccess = () => {
-            if (getRequest.result) {
-              store.delete(getRequest.result)
-            }
-            
-            // Сохраняем новую запись
-            const putRequest = store.put(imageData)
-            
-            putRequest.onsuccess = () => {
-              console.log('Изображение сохранено для ячейки', index)
-              resolve({
-                id: imageData.id,
-                url: base64Data,
-                name: file.name,
-                size: processedFile.size,
-                uploadedAt: imageData.uploadedAt
-              })
-            }
-            
-            putRequest.onerror = () => {
-              console.error('Ошибка сохранения:', putRequest.error)
-              reject(putRequest.error)
-            }
-          }
-          
-          getRequest.onerror = () => {
-            console.error('Ошибка поиска:', getRequest.error)
-            reject(getRequest.error)
-          }
-        } catch (error) {
-          console.error('Ошибка в обработке:', error)
-          reject(error)
-        }
-      }
-      
-      reader.onerror = () => {
-        console.error('Ошибка чтения файла:', reader.error)
-        reject(reader.error)
-      }
-      
-      reader.readAsDataURL(processedFile)
-    })
-  } catch (error) {
-    console.error('Ошибка сохранения в IndexedDB:', error)
-    throw error
-  }
-}
-
-// Сжатие изображения
-const compressImage = (file) => {
-  return new Promise((resolve, reject) => {
-    if (file.size <= 1 * 1024 * 1024) { // Если меньше 1MB, не сжимаем
-      resolve(file)
-      return
-    }
-    
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const img = new Image()
-      img.onload = () => {
-        const canvas = document.createElement('canvas')
-        let width = img.width
-        let height = img.height
-        
-        // Максимальный размер 1200px по большей стороне
-        const maxSize = 1200
-        if (width > height && width > maxSize) {
-          height = (height * maxSize) / width
-          width = maxSize
-        } else if (height > maxSize) {
-          width = (width * maxSize) / height
-          height = maxSize
-        }
-        
-        canvas.width = width
-        canvas.height = height
-        
-        const ctx = canvas.getContext('2d')
-        ctx.drawImage(img, 0, 0, width, height)
-        
-        // Качество 0.7 для баланса качества/размера
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(blob)
-          } else {
-            resolve(file)
-          }
-        }, 'image/jpeg', 0.7)
-      }
-      img.onerror = reject
-      img.src = e.target.result
-    }
-    reader.onerror = reject
-    reader.readAsDataURL(file)
-  })
-}
-
-// Загрузка изображения из IndexedDB
-const loadImageFromDB = async (index) => {
-  try {
-    const db = await initDB()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readonly')
-      const store = transaction.objectStore(STORE_NAME)
-      const indexObj = store.index('cellIndex')
-      const request = indexObj.get(index)
-      
-      request.onsuccess = () => {
-        if (request.result) {
-          const imageData = request.result
-          console.log('Найдено изображение для ячейки', index)
-          resolve({
-            id: imageData.id,
-            url: imageData.data,
-            name: imageData.name,
-            size: imageData.size,
-            uploadedAt: imageData.uploadedAt
-          })
-        } else {
-          console.log('Нет изображения для ячейки', index)
-          resolve(null)
-        }
-      }
-      
-      request.onerror = () => {
-        console.error('Ошибка загрузки:', request.error)
-        reject(request.error)
-      }
-    })
-  } catch (error) {
-    console.error('Ошибка загрузки из IndexedDB:', error)
-    return null
-  }
-}
-
-// Удаление изображения из IndexedDB
-const deleteImageFromDB = async (index) => {
-  try {
-    const db = await initDB()
-    
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction([STORE_NAME], 'readwrite')
-      const store = transaction.objectStore(STORE_NAME)
-      const indexObj = store.index('cellIndex')
-      const request = indexObj.getKey(index)
-      
-      request.onsuccess = () => {
-        if (request.result) {
-          const deleteRequest = store.delete(request.result)
-          
-          deleteRequest.onsuccess = () => {
-            console.log('Изображение удалено для ячейки', index)
-            resolve()
-          }
-          
-          deleteRequest.onerror = () => {
-            console.error('Ошибка удаления:', deleteRequest.error)
-            reject(deleteRequest.error)
-          }
-        } else {
-          resolve()
-        }
-      }
-      
-      request.onerror = () => {
-        console.error('Ошибка поиска для удаления:', request.error)
-        reject(request.error)
-      }
-    })
-  } catch (error) {
-    console.error('Ошибка удаления из IndexedDB:', error)
-    throw error
-  }
-}
-
-// Сохранение метаданных галереи (для главной страницы)
-const saveGalleryMetadata = () => {
-  try {
-    const metadataKey = `daytrack_gallery_metadata_${getCurrentUserId()}`
-    
-    // Собираем метаданные всех изображений
-    const metadata = galleryCells.value
-      .filter(cell => cell.imageUrl)
-      .map(cell => ({
-        id: cell.imageData?.id || '',
-        name: cell.imageData?.name || 'photo',
-        uploadedAt: cell.imageData?.uploadedAt || new Date().toISOString(),
-        cellIndex: cell.cellIndex
-      }))
-    
-    localStorage.setItem(metadataKey, JSON.stringify(metadata))
-    console.log('Метаданные сохранены:', metadata.length, 'изображений')
-    
-    // Сообщаем главной странице об обновлении
-    localStorage.setItem('daytrack_gallery_updated', Date.now().toString())
-    
-  } catch (error) {
-    console.error('Ошибка сохранения метаданных:', error)
-  }
-}
-
-// Загрузка данных галереи при монтировании
-onMounted(async () => {
-  console.log('Компонент галереи загружен')
-  
-  const isLoggedIn = localStorage.getItem('daytrack_logged_in') === 'true'
-  if (!isLoggedIn) {
-    router.push('/')
-    return
-  }
-  
-  console.log('Пользователь авторизован')
-  await loadGalleryData()
-})
-
-// Загрузка всех данных галереи
-const loadGalleryData = async () => {
-  console.log('Загрузка данных галереи...')
-  
-  try {
-    const initialCells = createInitialGallery()
-    
-    for (let i = 0; i < initialCells.length; i++) {
-      try {
-        initialCells[i].loading = true
-        console.log('Загрузка изображения для ячейки', i)
-        
-        const imageData = await loadImageFromDB(i)
-        
-        if (imageData) {
-          initialCells[i].imageUrl = imageData.url
-          initialCells[i].imageData = imageData
-          console.log('Изображение', i, 'загружено успешно')
-        } else {
-          console.log('Нет изображения для ячейки', i)
-        }
-      } catch (error) {
-        console.error('Ошибка загрузки изображения', i, ':', error)
-      } finally {
-        initialCells[i].loading = false
-      }
-    }
-    
-    galleryCells.value = initialCells
-    const loadedCount = initialCells.filter(cell => cell.imageUrl).length
-    console.log('Галерея загружена:', loadedCount, 'фото')
-    
-    // Сохраняем метаданные для главной страницы
-    saveGalleryMetadata()
-    
-  } catch (error) {
-    console.error('Критическая ошибка загрузки галереи:', error)
-    galleryCells.value = createInitialGallery()
-  }
-}
-
-// Открытие выбора файла
-const openFilePicker = (index) => {
-  console.log('Открытие выбора файла для ячейки:', index)
-  currentFileIndex.value = index
-  fileInput.value.click()
-}
-
-// Обработка выбора файла
-const handleFileSelect = async (event) => {
-  const files = event.target.files
-  if (!files || files.length === 0) {
-    console.log('Файлы не выбраны')
-    return
-  }
-  
-  const file = files[0]
-  console.log('Выбран файл:', file.name, 'размер:', (file.size / (1024 * 1024)).toFixed(2), 'MB')
-  
-  if (file && currentFileIndex.value !== null) {
-    if (!file.type.startsWith('image/')) {
-      console.log('Это не изображение')
-      event.target.value = ''
-      return
-    }
-    
-    if (file.size > 20 * 1024 * 1024) {
-      console.log('Файл слишком большой (макс. 20MB)')
-      event.target.value = ''
-      return
-    }
-    
-    const index = currentFileIndex.value
-    
-    try {
-      galleryCells.value[index].loading = true
-      
-      const imageData = await saveImageToDB(index, file)
-      
-      galleryCells.value[index].imageUrl = imageData.url
-      galleryCells.value[index].imageData = imageData
-      galleryCells.value[index].loading = false
-      
-      console.log('Фото загружено в ячейку', index)
-      
-      // Сохраняем метаданные для главной страницы
-      saveGalleryMetadata()
-      
-    } catch (error) {
-      console.error('Ошибка загрузки файла:', error)
-      galleryCells.value[index].loading = false
-      alert('Не удалось загрузить фото. Попробуйте другое изображение.')
-    } finally {
-      event.target.value = ''
-      currentFileIndex.value = null
-    }
-  }
-}
-
 // Обработка загрузки изображения
 const onImageLoad = (index) => {
-  console.log('Изображение загружено в ячейке', index)
+  console.log('Изображение загружено для ячейки', index)
 }
 
 // Обработка ошибки загрузки изображения
-const handleImageError = async (index) => {
-  console.error('Ошибка загрузки изображения в ячейке', index)
+const handleImageError = (index) => {
+  console.error('Ошибка загрузки изображения для ячейки', index)
   
-  try {
-    galleryCells.value[index].loading = true
-    
-    const imageData = await loadImageFromDB(index)
-    
-    if (imageData) {
-      galleryCells.value[index].imageUrl = imageData.url
-      galleryCells.value[index].imageData = imageData
-    } else {
-      galleryCells.value[index].imageUrl = null
-      galleryCells.value[index].imageData = null
-      await deleteImageFromDB(index)
-    }
-  } catch (error) {
-    console.error('Ошибка восстановления изображения:', error)
-    galleryCells.value[index].imageUrl = null
-    galleryCells.value[index].imageData = null
-  } finally {
+  if (index < galleryCells.value.length) {
+    galleryCells.value[index].imageUrl = ''
     galleryCells.value[index].loading = false
-    
-    // Обновляем метаданные
-    saveGalleryMetadata()
   }
 }
 
 // Удаление изображения
-const deleteImage = async (index) => {
-  console.log('Удаление фото из ячейки', index)
-  
-  if (!confirm('Удалить это фото?')) {
+const deleteImage = async (photoId) => {
+  if (!photoId) {
+    alert('Не удалось определить фото для удаления')
     return
   }
   
+  if (!confirm('Вы уверены, что хотите удалить это фото?')) {
+    return
+  }
+  
+  isDeleting.value = true
+  
   try {
-    await deleteImageFromDB(index)
+    const token = localStorage.getItem('access_token')
     
-    galleryCells.value[index].imageUrl = null
-    galleryCells.value[index].imageData = null
+    if (!token) {
+      throw new Error('Требуется авторизация')
+    }
     
-    console.log('Фото удалено')
+    // Согласно API: DELETE /api/photos/:photoId - удалить фото
+    const response = await fetch(`http://localhost:5000/api/photos/${photoId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    })
     
-    // Обновляем метаданные для главной страницы
-    saveGalleryMetadata()
+    if (!response.ok) {
+      throw new Error(`Ошибка удаления фото: ${response.status}`)
+    }
+    
+    const data = await response.json()
+    
+    if (data.success) {
+      // Удаляем из массива
+      const index = galleryCells.value.findIndex(cell => cell.id === photoId)
+      if (index !== -1) {
+        galleryCells.value.splice(index, 1)
+      }
+      
+      // Закрываем полноэкранный просмотр если открыт
+      if (fullscreenVisible.value && currentPhotoId.value === photoId) {
+        closeFullscreen()
+      }
+      
+      console.log('✅ Фото успешно удалено')
+    } else {
+      throw new Error(data.message || 'Не удалось удалить фото')
+    }
     
   } catch (error) {
-    console.error('Ошибка удаления фото:', error)
-    alert('Не удалось удалить фото')
+    console.error('❌ Ошибка удаления фото:', error)
+    alert(error.message || 'Не удалось удалить фото')
+  } finally {
+    isDeleting.value = false
   }
 }
 
 // Открытие полноразмерного просмотра
 const openFullscreen = (index) => {
-  console.log('Открытие полноэкранного просмотра для ячейки', index)
-  
   const cell = galleryCells.value[index]
   if (cell && cell.imageUrl) {
-    fullscreenIndex.value = index
     fullscreenImageUrl.value = cell.imageUrl
+    currentFullscreenEntry.value = cell.entryInfo
+    currentPhotoId.value = cell.id
     fullscreenVisible.value = true
   }
 }
 
 // Закрытие полноразмерного просмотра
 const closeFullscreen = () => {
-  console.log('Закрытие полноэкранного просмотра')
   fullscreenVisible.value = false
-  fullscreenIndex.value = null
   fullscreenImageUrl.value = ''
+  currentFullscreenEntry.value = null
+  currentPhotoId.value = null
 }
 
 // Удаление изображения из полноразмерного просмотра
 const deleteFullscreenImage = async () => {
-  if (fullscreenIndex.value !== null) {
-    console.log('Удаление фото из полноэкранного режима, ячейка:', fullscreenIndex.value)
-    await deleteImage(fullscreenIndex.value)
-    closeFullscreen()
+  if (currentPhotoId.value) {
+    await deleteImage(currentPhotoId.value)
   }
 }
+
+// Инициализация
+onMounted(() => {
+  // Проверяем авторизацию
+  const isLoggedIn = localStorage.getItem('is_logged_in') === 'true'
+  if (!isLoggedIn) {
+    router.push('/')
+    return
+  }
+  
+  loadGalleryData()
+})
 </script>
 
 <style scoped>
-@import '@/components/Gallery.css';
+@import '@/styles/Gallery.css';
+
+/* Дополнительные стили */
+.loading-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  text-align: center;
+}
+
+.loading-spinner-large {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #9770A9;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.empty-gallery {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.empty-text {
+  font-size: 24px;
+  color: #666;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+
+.empty-subtext {
+  font-size: 16px;
+  color: #888;
+  max-width: 300px;
+}
+
+.empty-cell-text {
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+  margin-top: 8px;
+  padding: 0 5px;
+  line-height: 1.2;
+}
+
+.entry-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+  color: white;
+  padding: 10px;
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.gallery-cell:hover .entry-info {
+  opacity: 1;
+}
+
+.entry-date {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.entry-preview {
+  opacity: 0.9;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fullscreen-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.fullscreen-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333;
+}
+
+.fullscreen-close {
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: #666;
+  cursor: pointer;
+  padding: 5px;
+  line-height: 1;
+}
+
+.fullscreen-close:hover {
+  color: #333;
+}
+
+.fullscreen-info {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: rgba(0,0,0,0.05);
+  border-radius: 8px;
+}
+
+.fullscreen-date {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.fullscreen-preview {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
+}
+
+.fullscreen-actions {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.fullscreen-delete {
+  padding: 10px 20px;
+  background-color: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.fullscreen-delete:hover:not(:disabled) {
+  background-color: #c0392b;
+}
+
+.fullscreen-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 </style>
