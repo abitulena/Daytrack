@@ -1,20 +1,21 @@
-# Используем официальный образ Node.js
-FROM node:18-alpine
+# backend/Dockerfile
+FROM node:20-alpine
 
-# Рабочая директория в контейнере
 WORKDIR /app
 
-# Копируем package.json и package-lock.json
+# Копируем зависимости
 COPY package*.json ./
 
-# Устанавливаем зависимости
-RUN npm ci --only=production
+# Устанавливаем ВСЕ зависимости (включая devDependencies)
+RUN npm install
 
-# Копируем весь код проекта
+# Копируем исходный код
 COPY . .
 
-# Открываем порт, на котором работает приложение
+# Создаем папку для загрузок
+RUN mkdir -p public/uploads
+
 EXPOSE 5000
 
-# Команда запуска
-CMD ["node", "server.js"]
+# Используем nodemon для development
+CMD ["npx", "nodemon", "server.js"]

@@ -4,6 +4,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser'; 
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 
 import { testConnection } from './models/index.js';
 
@@ -27,8 +28,7 @@ const app = express()
 
 // Middleware
 app.use(cors({
-  // origin: '*'
-  origin: ['http://10.31.178.160:5173', 'http://localhost:5173'], 
+  origin: ['http://localhost:5173', 'http://frontend:5173'], 
   credentials: true
 }));
 app.use(cookieParser()); 
